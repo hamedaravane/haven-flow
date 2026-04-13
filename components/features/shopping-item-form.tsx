@@ -121,14 +121,17 @@ export function ShoppingItemForm({ onSuccess, defaultName }: ShoppingItemFormPro
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                <Select
+                  onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                  value={field.value || "__none__"}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {INVENTORY_UNITS.map((u) => (
                       <SelectItem key={u} value={u}>
                         {u}
