@@ -23,7 +23,8 @@ export function AddToListButton({ inventoryItemId }: AddToListButtonProps) {
     startTransition(async () => {
       const result = await addInventoryItemToShoppingList(inventoryItemId)
       if (result.error) {
-        if (result.error !== "Already on shopping list") {
+        // "Already on shopping list" is an expected non-critical state — no toast
+        if (!result.alreadyExists) {
           toast(result.error, { variant: "error" })
         }
       } else {

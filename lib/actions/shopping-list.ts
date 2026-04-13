@@ -126,7 +126,7 @@ export async function addInventoryItemToShoppingList(inventoryItemId: string) {
   })
 
   if (existingShoppingItem) {
-    return { error: "Already on shopping list" }
+    return { error: "Already on shopping list", alreadyExists: true as const }
   }
 
   await db.insert(shoppingListItems).values({
