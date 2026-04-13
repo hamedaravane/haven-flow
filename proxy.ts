@@ -10,7 +10,7 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Always allow public paths and static assets
@@ -43,6 +43,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run middleware on all paths except Next.js internals and static files
+  // Run proxy on all paths except Next.js internals and static files
   matcher: ["/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|svg|ico|webp|woff2?|ttf)).*)"],
 }

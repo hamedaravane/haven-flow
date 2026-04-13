@@ -5,6 +5,7 @@ import { ShoppingCart, Check } from "lucide-react"
 
 import { addInventoryItemToShoppingList } from "@/lib/actions/shopping-list"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/hooks/use-toast"
 
 interface AddToListButtonProps {
   inventoryItemId: string
@@ -21,7 +22,11 @@ export function AddToListButton({ inventoryItemId }: AddToListButtonProps) {
   function handleClick() {
     startTransition(async () => {
       const result = await addInventoryItemToShoppingList(inventoryItemId)
-      if (!result.error) {
+      if (result.error) {
+        if (result.error !== "Already on shopping list") {
+          toast(result.error, { variant: "error" })
+        }
+      } else {
         setAdded(true)
         setTimeout(() => setAdded(false), 2000)
       }

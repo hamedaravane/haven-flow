@@ -20,12 +20,12 @@ const inventorySchema = z.object({
     .positive("Quantity must be positive"),
   unit: z
     .string()
-    .optional()
+    .nullish()
     .transform((v) => v || null),
   /** ISO date string from <input type="date">, e.g. "2025-01-15" — optional */
   expiresAt: z
     .string()
-    .optional()
+    .nullish()
     .transform((v) => (v && v.length > 0 ? v : null)),
   location: z.enum(INVENTORY_LOCATIONS),
 })
@@ -58,7 +58,7 @@ export async function createInventoryItem(input: InventoryInput) {
     addedBy: session.user.id,
     name,
     quantity: String(quantity),
-    unit: unit ?? undefined,
+    unit: unit,
     expiresAt: expiresAt ? new Date(expiresAt) : null,
     location,
   })
@@ -92,7 +92,7 @@ export async function updateInventoryItem(itemId: string, input: InventoryInput)
     .set({
       name,
       quantity: String(quantity),
-      unit: unit ?? undefined,
+      unit: unit,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       location,
     })

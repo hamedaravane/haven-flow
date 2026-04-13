@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { createInventoryItem, updateInventoryItem } from "@/lib/actions/inventory"
 import { INVENTORY_LOCATIONS, INVENTORY_LOCATION_LABELS, INVENTORY_UNITS } from "@/lib/constants"
+import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -76,6 +77,7 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
         setServerError(result.error)
       } else {
         form.reset({ name: "", quantity: undefined, unit: "", expiresAt: "", location: "pantry" })
+        toast(itemId ? "Item updated" : "Item added to inventory", { variant: "success" })
         onSuccess?.()
       }
     })

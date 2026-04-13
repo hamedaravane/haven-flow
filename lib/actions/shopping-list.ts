@@ -19,7 +19,7 @@ const shoppingItemSchema = z.object({
     .positive("Quantity must be positive"),
   unit: z
     .string()
-    .optional()
+    .nullish()
     .transform((v) => v || null),
 })
 
@@ -51,7 +51,7 @@ export async function addShoppingItem(input: ShoppingItemInput) {
     addedBy: session.user.id,
     name,
     quantity: String(quantity),
-    unit: unit ?? undefined,
+    unit: unit,
     isChecked: false,
   })
 
@@ -151,16 +151,19 @@ export async function clearCheckedItems() {
   const session = await requireSession()
   const household = await getOrCreateHousehold(session.user.id)
 
-  await db
-    .delete(shoppingListItems)
-    .where(
-      and(
-        eq(shoppingListItems.householdId, household.id),
-        eq(shoppingListItems.isChecked, true)
+  try {
+    await db
+      .delete(shoppingListItems)
+      .where(
+        and(
+          eq(shoppingListItems.householdId, household.id),
+          eq(shoppingListItems.isChecked, true)
+        )
       )
-    )
 
-  revalidatePath("/shopping-list")
-
-  return { success: true }
+    revalidatePath("/shopping-list")
+    return { success: true }
+  } catch {
+    return { error: "Failed to clear checked items" }
+  }
 }

@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { createTransaction } from "@/lib/actions/transactions"
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants"
+import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -86,6 +87,7 @@ export function TransactionForm({ onSuccess, defaultDate }: TransactionFormProps
           isHouseholdExpense: true,
           transactionDate: todayISO,
         })
+        toast("Transaction saved", { variant: "success" })
         onSuccess?.()
       }
     })
