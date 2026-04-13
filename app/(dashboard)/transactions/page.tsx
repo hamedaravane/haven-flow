@@ -53,9 +53,15 @@ export default async function TransactionsPage() {
         </CardHeader>
         <CardContent className="p-0">
           {allTransactions.length === 0 ? (
-            <p className="px-6 py-8 text-center text-sm text-muted-foreground">
-              No transactions yet — add your first one above.
-            </p>
+            <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+              <span className="text-3xl" aria-hidden>🧾</span>
+              <div>
+                <p className="font-medium text-foreground">No transactions yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add your first one above to start tracking.
+                </p>
+              </div>
+            </div>
           ) : (
             <Table>
               <TableHeader>

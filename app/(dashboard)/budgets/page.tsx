@@ -153,9 +153,17 @@ export default async function BudgetsPage() {
       )}
 
       {allBudgets.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          No budgets yet — set your first one above.
-        </p>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <span className="text-3xl" aria-hidden>🎯</span>
+            <div>
+              <p className="font-medium text-foreground">No budgets yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Set your first monthly budget above to start tracking spending.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

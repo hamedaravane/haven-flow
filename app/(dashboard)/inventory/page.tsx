@@ -153,9 +153,17 @@ export default async function InventoryPage() {
       })}
 
       {allItems.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          No items yet — add your first one above.
-        </p>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <span className="text-3xl" aria-hidden>📦</span>
+            <div>
+              <p className="font-medium text-foreground">Inventory is empty</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add your first item above to start tracking expiry dates.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

@@ -3,6 +3,7 @@
 import { useTransition } from "react"
 
 import { toggleShoppingItem } from "@/lib/actions/shopping-list"
+import { Checkbox } from "@/components/ui/checkbox"
 import { DeleteShoppingItemButton } from "@/components/features/delete-buttons"
 
 interface ShoppingItemRowProps {
@@ -34,24 +35,12 @@ export function ShoppingItemRow({ item }: ShoppingItemRowProps) {
         isPending ? "opacity-50" : ""
       }`}
     >
-      {/* Custom checkbox */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={item.isChecked}
-        onClick={handleToggle}
-        className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-          item.isChecked
-            ? "border-emerald-500 bg-emerald-500 text-white"
-            : "border-input hover:border-emerald-400"
-        }`}
-      >
-        {item.isChecked && (
-          <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </button>
+      <Checkbox
+        checked={item.isChecked}
+        onCheckedChange={handleToggle}
+        aria-label={`Mark "${item.name}" as ${item.isChecked ? "pending" : "purchased"}`}
+        className="rounded-full data-[state=checked]:border-emerald-500 data-[state=checked]:bg-emerald-500"
+      />
 
       {/* Item details */}
       <div className="min-w-0 flex-1">

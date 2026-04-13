@@ -18,7 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -118,16 +124,20 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <FormControl>
-                <Select {...field}>
-                  <option value="">Select a category…</option>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
                   {EXPENSE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
+                    <SelectItem key={c} value={c}>
                       {c}
-                    </option>
+                    </SelectItem>
                   ))}
-                </Select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -142,3 +152,4 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
     </Form>
   )
 }
+

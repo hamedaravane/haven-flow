@@ -72,12 +72,15 @@ export function NavMobile() {
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
+              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors",
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <Icon className="size-5" />
             <span>{label}</span>
+            {isActive && (
+              <span className="absolute bottom-0 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-primary" />
+            )}
           </Link>
         )
       })}
