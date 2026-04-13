@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 /**
  * Paths that are publicly accessible (no authentication required).
  */
-const PUBLIC_PATHS = ["/login", "/register", "/api/auth"]
+const PUBLIC_PATHS = ["/login", "/register", "/api/auth", "/api/health"]
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))

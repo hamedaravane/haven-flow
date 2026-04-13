@@ -9,13 +9,16 @@ services:
       POSTGRES_DB: havenflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Only expose the DB port to the app service (not to the host) in production.
+    # Uncomment the next two lines if you need direct DB access during development:
+    # ports:
+    #   - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U havenflow -d havenflow"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   # ─── Next.js Application ─────────────────────────────────────────────────────
   app:
@@ -30,12 +33,20 @@ services:
       DATABASE_URL: postgresql://havenflow:havenflow_password@db:5432/havenflow
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@havenflow.local}
       NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
   postgres_data:
