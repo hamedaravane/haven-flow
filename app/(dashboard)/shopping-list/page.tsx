@@ -159,9 +159,17 @@ export default async function ShoppingListPage() {
           </CardContent>
         </Card>
       ) : (
-        <p className="text-center text-sm text-muted-foreground">
-          Your shopping list is empty.
-        </p>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <span className="text-3xl" aria-hidden>🛒</span>
+            <div>
+              <p className="font-medium text-foreground">Shopping list is empty</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add items manually above, or use smart suggestions from your inventory.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

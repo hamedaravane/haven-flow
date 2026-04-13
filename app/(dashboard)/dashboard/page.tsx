@@ -305,9 +305,17 @@ export default async function DashboardPage() {
       )}
 
       {recentTransactions.length === 0 && enrichedBudgets.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground">
-          Add your first transaction or budget to get started.
-        </p>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <span className="text-4xl" aria-hidden>✨</span>
+            <div>
+              <p className="font-medium text-foreground">All set up — let&apos;s get started</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add your first transaction or set a budget to begin tracking your finances.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

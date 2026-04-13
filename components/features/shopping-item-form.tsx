@@ -18,7 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -115,16 +121,21 @@ export function ShoppingItemForm({ onSuccess, defaultName }: ShoppingItemFormPro
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <FormControl>
-                  <Select {...field}>
-                    <option value="">None</option>
+                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
                     {INVENTORY_UNITS.map((u) => (
-                      <option key={u} value={u}>
+                      <SelectItem key={u} value={u}>
                         {u}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </Select>
-                </FormControl>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -140,3 +151,4 @@ export function ShoppingItemForm({ onSuccess, defaultName }: ShoppingItemFormPro
     </Form>
   )
 }
+

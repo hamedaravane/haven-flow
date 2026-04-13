@@ -7,8 +7,10 @@ import { z } from "zod"
 
 import { createTransaction } from "@/lib/actions/transactions"
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Form,
   FormControl,
@@ -18,7 +20,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -106,23 +114,23 @@ export function TransactionForm({ onSuccess, defaultDate }: TransactionFormProps
               <FormControl>
                 <div className="flex overflow-hidden rounded-2xl border border-input">
                   {(["expense", "income"] as const).map((t) => (
-                    <button
+                    <Button
                       key={t}
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         field.onChange(t)
                         form.setValue("category", "")
                       }}
-                      className={`flex-1 py-1.5 text-sm font-medium capitalize transition-colors ${
-                        field.value === t
-                          ? t === "expense"
-                            ? "bg-rose-500 text-white"
-                            : "bg-emerald-500 text-white"
-                          : "bg-transparent text-muted-foreground hover:bg-muted"
-                      }`}
+                      className={cn(
+                        "flex-1 rounded-none capitalize transition-colors first:rounded-l-2xl last:rounded-r-2xl",
+                        field.value === t && t === "expense" && "bg-rose-500 text-white hover:bg-rose-500/90",
+                        field.value === t && t === "income" && "bg-emerald-500 text-white hover:bg-emerald-500/90"
+                      )}
                     >
                       {t}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </FormControl>
@@ -176,16 +184,20 @@ export function TransactionForm({ onSuccess, defaultDate }: TransactionFormProps
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <FormControl>
-                <Select {...field}>
-                  <option value="">Select a category…</option>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
                   {categories.map((c) => (
-                    <option key={c} value={c}>
+                    <SelectItem key={c} value={c}>
                       {c}
-                    </option>
+                    </SelectItem>
                   ))}
-                </Select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -212,15 +224,17 @@ export function TransactionForm({ onSuccess, defaultDate }: TransactionFormProps
           name="isHouseholdExpense"
           render={({ field }) => (
             <FormItem>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={!!field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                  className="rounded border-input"
-                />
-                <span className="text-sm text-muted-foreground">Household expense (shared)</span>
-              </label>
+              <div className="flex items-center gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={!!field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="cursor-pointer font-normal text-muted-foreground">
+                  Household expense (shared)
+                </FormLabel>
+              </div>
             </FormItem>
           )}
         />

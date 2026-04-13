@@ -18,7 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -130,16 +136,21 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <FormControl>
-                  <Select {...field}>
-                    <option value="">None</option>
+                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
                     {INVENTORY_UNITS.map((u) => (
-                      <option key={u} value={u}>
+                      <SelectItem key={u} value={u}>
                         {u}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </Select>
-                </FormControl>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -154,15 +165,20 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Select {...field}>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
                     {INVENTORY_LOCATIONS.map((loc) => (
-                      <option key={loc} value={loc}>
+                      <SelectItem key={loc} value={loc}>
                         {INVENTORY_LOCATION_LABELS[loc]}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </Select>
-                </FormControl>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -192,3 +208,4 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
     </Form>
   )
 }
+
