@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { createTransaction } from "@/lib/actions/transactions"
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -122,13 +123,11 @@ export function TransactionForm({ onSuccess, defaultDate }: TransactionFormProps
                         field.onChange(t)
                         form.setValue("category", "")
                       }}
-                      className={`flex-1 rounded-none capitalize transition-colors first:rounded-l-2xl last:rounded-r-2xl ${
-                        field.value === t
-                          ? t === "expense"
-                            ? "bg-rose-500 text-white hover:bg-rose-500/90"
-                            : "bg-emerald-500 text-white hover:bg-emerald-500/90"
-                          : ""
-                      }`}
+                      className={cn(
+                        "flex-1 rounded-none capitalize transition-colors first:rounded-l-2xl last:rounded-r-2xl",
+                        field.value === t && t === "expense" && "bg-rose-500 text-white hover:bg-rose-500/90",
+                        field.value === t && t === "income" && "bg-emerald-500 text-white hover:bg-emerald-500/90"
+                      )}
                     >
                       {t}
                     </Button>
