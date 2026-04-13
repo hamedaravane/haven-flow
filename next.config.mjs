@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  // Enables standalone output for Docker deployments
+  output: "standalone",
+}
 
 export default nextConfig
