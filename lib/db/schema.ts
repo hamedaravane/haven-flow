@@ -92,7 +92,7 @@ export const householdMembers = pgTable("household_members", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   role: householdRoleEnum("role").notNull().default("member"),
@@ -105,7 +105,7 @@ export const householdMembers = pgTable("household_members", {
  */
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   userId: text("user_id")
@@ -126,7 +126,7 @@ export const transactions = pgTable("transactions", {
  */
 export const budgets = pgTable("budgets", {
   id: uuid("id").primaryKey().defaultRandom(),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   /** Format: YYYY-MM (e.g. "2025-01") */
@@ -141,7 +141,7 @@ export const budgets = pgTable("budgets", {
  */
 export const items = pgTable("items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -155,7 +155,7 @@ export const items = pgTable("items", {
  */
 export const inventory = pgTable("inventory", {
   id: uuid("id").primaryKey().defaultRandom(),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -174,7 +174,7 @@ export const inventory = pgTable("inventory", {
  */
 export const shoppingListItems = pgTable("shopping_list_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -196,7 +196,7 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  householdId: text("household_id")
+  householdId: uuid("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
   /** The push endpoint URL provided by the browser */

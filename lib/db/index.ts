@@ -6,18 +6,10 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is not set")
 }
 
-/**
- * Single shared connection pool for the entire app.
- * Reused across hot-reloads in development via the global cache.
- */
-const globalForDb = globalThis as unknown as { pool: Pool | undefined }
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-const pool = globalForDb.pool ?? new Pool({ connectionString: process.env.DATABASE_URL })
-
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.pool = pool
-}
-
-export const db = drizzle(pool, { schema })
+export const db = drizzle({ client: pool, schema });
 
 export type DB = typeof db
