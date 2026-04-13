@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { upsertBudget } from "@/lib/actions/budgets"
 import { EXPENSE_CATEGORIES, currentMonth } from "@/lib/constants"
+import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -63,6 +64,7 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
         setServerError(result.error)
       } else {
         form.reset({ month: currentMonth(), category: "", plannedAmount: undefined })
+        toast("Budget saved", { variant: "success" })
         onSuccess?.()
       }
     })

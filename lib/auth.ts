@@ -19,6 +19,15 @@ export const auth = betterAuth({
     },
   }),
 
+  /**
+   * baseURL is read from BETTER_AUTH_URL first, then falls back to NEXT_PUBLIC_APP_URL.
+   * Set either env var to the full origin (e.g. https://havenflow.example.com).
+   */
+  baseURL:
+    process.env.BETTER_AUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000",
+
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,

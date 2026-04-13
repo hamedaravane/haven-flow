@@ -8,6 +8,7 @@ import { deleteBudget } from "@/lib/actions/budgets"
 import { deleteInventoryItem } from "@/lib/actions/inventory"
 import { deleteShoppingItem, clearCheckedItems } from "@/lib/actions/shopping-list"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/hooks/use-toast"
 
 interface DeleteTransactionButtonProps {
   transactionId: string
@@ -21,7 +22,12 @@ export function DeleteTransactionButton({ transactionId }: DeleteTransactionButt
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(async () => { await deleteTransaction(transactionId) })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await deleteTransaction(transactionId)
+          if (result.error) toast(result.error, { variant: "error" })
+        })
+      }
       aria-label="Delete transaction"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
@@ -41,7 +47,12 @@ export function DeleteBudgetButton({ budgetId }: DeleteBudgetButtonProps) {
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(async () => { await deleteBudget(budgetId) })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await deleteBudget(budgetId)
+          if (result.error) toast(result.error, { variant: "error" })
+        })
+      }
       aria-label="Delete budget"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
@@ -61,7 +72,12 @@ export function DeleteInventoryButton({ itemId }: DeleteInventoryButtonProps) {
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(async () => { await deleteInventoryItem(itemId) })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await deleteInventoryItem(itemId)
+          if (result.error) toast(result.error, { variant: "error" })
+        })
+      }
       aria-label="Delete inventory item"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
@@ -81,7 +97,12 @@ export function DeleteShoppingItemButton({ itemId }: DeleteShoppingItemButtonPro
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(async () => { await deleteShoppingItem(itemId) })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await deleteShoppingItem(itemId)
+          if (result.error) toast(result.error, { variant: "error" })
+        })
+      }
       aria-label="Remove from shopping list"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
@@ -98,7 +119,16 @@ export function ClearCheckedButton() {
       variant="outline"
       size="sm"
       disabled={isPending}
-      onClick={() => startTransition(async () => { await clearCheckedItems() })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await clearCheckedItems()
+          if (result.error) {
+            toast(result.error, { variant: "error" })
+          } else {
+            toast("Checked items cleared", { variant: "success" })
+          }
+        })
+      }
     >
       {isPending ? "Clearing…" : "Clear checked"}
     </Button>

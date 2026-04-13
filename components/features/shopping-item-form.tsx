@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { addShoppingItem } from "@/lib/actions/shopping-list"
 import { INVENTORY_UNITS } from "@/lib/constants"
+import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -63,6 +64,7 @@ export function ShoppingItemForm({ onSuccess, defaultName }: ShoppingItemFormPro
         setServerError(result.error)
       } else {
         form.reset({ name: "", quantity: undefined, unit: "" })
+        toast("Item added to list", { variant: "success" })
         onSuccess?.()
       }
     })
