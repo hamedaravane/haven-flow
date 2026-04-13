@@ -19,7 +19,7 @@ export function DeleteTransactionButton({ transactionId }: DeleteTransactionButt
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(() => { void deleteTransaction(transactionId) })}
+      onClick={() => startTransition(async () => { await deleteTransaction(transactionId) })}
       aria-label="Delete transaction"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
@@ -39,7 +39,7 @@ export function DeleteBudgetButton({ budgetId }: DeleteBudgetButtonProps) {
       variant="ghost"
       size="icon-sm"
       disabled={isPending}
-      onClick={() => startTransition(() => { void deleteBudget(budgetId) })}
+      onClick={() => startTransition(async () => { await deleteBudget(budgetId) })}
       aria-label="Delete budget"
     >
       <Trash2 className="size-3.5 text-muted-foreground" />

@@ -91,7 +91,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-medium">
-          {greeting}, {session.user.name.split(" ")[0]} 👋
+          {greeting}, {(session.user.name.split(" ")[0]) ?? session.user.name} 👋
         </h1>
         <p className="text-sm text-muted-foreground">{monthLabel} overview</p>
       </div>
