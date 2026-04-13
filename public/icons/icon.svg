@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="120" fill="#EFF6FF"/>
+  <!-- House shape -->
+  <path d="M256 100L100 230v180h312V230L256 100z" fill="#BFDBFE"/>
+  <!-- Roof ridge -->
+  <path d="M256 100L100 230h312L256 100z" fill="#3B82F6"/>
+  <!-- Door -->
+  <rect x="214" y="310" width="84" height="100" rx="42" fill="#1D4ED8"/>
+  <!-- Window left -->
+  <rect x="136" y="270" width="64" height="60" rx="8" fill="white" opacity="0.8"/>
+  <!-- Window right -->
+  <rect x="312" y="270" width="64" height="60" rx="8" fill="white" opacity="0.8"/>
+  <!-- Flow line (stylised wave) -->
+  <path d="M160 410 Q196 390 232 410 Q268 430 304 410 Q340 390 376 410" stroke="#3B82F6" stroke-width="10" stroke-linecap="round" fill="none"/>
+</svg>
