@@ -137,7 +137,7 @@ export function ReportsCharts({ monthlyData, categoryData }: ReportsChartsProps)
         </CardHeader>
         <CardContent>
           {categoryData.length === 0 ? (
-            <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-70 items-center justify-center text-sm text-muted-foreground">
               No expense data for this month yet.
             </div>
           ) : (

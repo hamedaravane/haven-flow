@@ -1,4 +1,12 @@
-import { pgTable, text, boolean, timestamp, decimal, pgEnum } from "drizzle-orm/pg-core"
+import {
+  pgTable,
+  text,
+  boolean,
+  timestamp,
+  decimal,
+  pgEnum,
+  uuid
+} from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
@@ -69,7 +77,7 @@ export const verification = pgTable("verification", {
  * All application data is scoped to one household.
  */
 export const households = pgTable("households", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull().default("Our Home"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   /** Timestamp of the last push-notification batch sent for this household (for cooldown). */
@@ -80,7 +88,7 @@ export const households = pgTable("households", {
  * Links users to the household with an optional role.
  */
 export const householdMembers = pgTable("household_members", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -96,7 +104,7 @@ export const householdMembers = pgTable("household_members", {
  * isHouseholdExpense distinguishes shared costs from personal spending.
  */
 export const transactions = pgTable("transactions", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
@@ -117,7 +125,7 @@ export const transactions = pgTable("transactions", {
  * Actual spending is calculated from transactions.
  */
 export const budgets = pgTable("budgets", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
@@ -132,7 +140,7 @@ export const budgets = pgTable("budgets", {
  * Optional product catalog to speed up inventory / shopping-list entry.
  */
 export const items = pgTable("items", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
@@ -146,7 +154,7 @@ export const items = pgTable("items", {
  * Pantry / fridge / freezer inventory with expiration tracking.
  */
 export const inventory = pgTable("inventory", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
@@ -165,7 +173,7 @@ export const inventory = pgTable("inventory", {
  * Collaborative shopping list — items can be checked off as purchased.
  */
 export const shoppingListItems = pgTable("shopping_list_items", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   householdId: text("household_id")
     .notNull()
     .references(() => households.id, { onDelete: "cascade" }),
@@ -184,7 +192,7 @@ export const shoppingListItems = pgTable("shopping_list_items", {
  * Stored so the server can send Web Push messages at any time.
  */
 export const pushSubscriptions = pgTable("push_subscriptions", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
