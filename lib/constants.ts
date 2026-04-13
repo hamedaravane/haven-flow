@@ -1,5 +1,5 @@
 /**
- * Shared constants used across transactions, budgets, and forms.
+ * Shared constants used across transactions, budgets, forms, and inventory.
  */
 
 export const EXPENSE_CATEGORIES = [
@@ -31,6 +31,70 @@ export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
 export type IncomeCategory = (typeof INCOME_CATEGORIES)[number]
 
 export const ALL_CATEGORIES = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES] as const
+
+// ─── Inventory ────────────────────────────────────────────────────────────────
+
+export const INVENTORY_LOCATIONS = ["fridge", "pantry", "freezer"] as const
+export type InventoryLocation = (typeof INVENTORY_LOCATIONS)[number]
+
+export const INVENTORY_LOCATION_LABELS: Record<InventoryLocation, string> = {
+  fridge: "🧊 Fridge",
+  pantry: "🗄️ Pantry",
+  freezer: "❄️ Freezer",
+}
+
+export const INVENTORY_UNITS = [
+  "pcs",
+  "kg",
+  "g",
+  "L",
+  "mL",
+  "lb",
+  "oz",
+  "cup",
+  "tbsp",
+  "tsp",
+  "pack",
+  "box",
+  "bag",
+  "bottle",
+  "can",
+  "bunch",
+] as const
+
+export type InventoryUnit = (typeof INVENTORY_UNITS)[number]
+
+/**
+ * Expiry urgency levels for inventory items.
+ * "expired"  — expiresAt is in the past
+ * "critical" — expires within 1 day
+ * "warning"  — expires within 3 days
+ * "ok"       — expires in > 3 days or no expiry date
+ */
+export type ExpiryStatus = "expired" | "critical" | "warning" | "ok"
+
+export function getExpiryStatus(expiresAt: Date | null | undefined): ExpiryStatus {
+  if (!expiresAt) return "ok"
+  const now = new Date()
+  const diffMs = expiresAt.getTime() - now.getTime()
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+  if (diffDays < 0) return "expired"
+  if (diffDays <= 1) return "critical"
+  if (diffDays <= 3) return "warning"
+  return "ok"
+}
+
+export function formatExpiryLabel(expiresAt: Date | null | undefined): string {
+  if (!expiresAt) return ""
+  const status = getExpiryStatus(expiresAt)
+  const formatted = expiresAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  if (status === "expired") return `Expired ${formatted}`
+  if (status === "critical") return `Expires tomorrow (${formatted})`
+  if (status === "warning") return `Expires ${formatted}`
+  return `Expires ${formatted}`
+}
+
+// ─── Formatting ───────────────────────────────────────────────────────────────
 
 /** Format a number as a currency string (e.g. 1234.56 → "$1,234.56") */
 export function formatCurrency(amount: number | string, currency = "USD"): string {

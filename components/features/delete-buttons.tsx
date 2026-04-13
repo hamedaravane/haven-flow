@@ -5,6 +5,8 @@ import { Trash2 } from "lucide-react"
 
 import { deleteTransaction } from "@/lib/actions/transactions"
 import { deleteBudget } from "@/lib/actions/budgets"
+import { deleteInventoryItem } from "@/lib/actions/inventory"
+import { deleteShoppingItem, clearCheckedItems } from "@/lib/actions/shopping-list"
 import { Button } from "@/components/ui/button"
 
 interface DeleteTransactionButtonProps {
@@ -46,3 +48,60 @@ export function DeleteBudgetButton({ budgetId }: DeleteBudgetButtonProps) {
     </Button>
   )
 }
+
+interface DeleteInventoryButtonProps {
+  itemId: string
+}
+
+export function DeleteInventoryButton({ itemId }: DeleteInventoryButtonProps) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={isPending}
+      onClick={() => startTransition(async () => { await deleteInventoryItem(itemId) })}
+      aria-label="Delete inventory item"
+    >
+      <Trash2 className="size-3.5 text-muted-foreground" />
+    </Button>
+  )
+}
+
+interface DeleteShoppingItemButtonProps {
+  itemId: string
+}
+
+export function DeleteShoppingItemButton({ itemId }: DeleteShoppingItemButtonProps) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={isPending}
+      onClick={() => startTransition(async () => { await deleteShoppingItem(itemId) })}
+      aria-label="Remove from shopping list"
+    >
+      <Trash2 className="size-3.5 text-muted-foreground" />
+    </Button>
+  )
+}
+
+/** Button to wipe all checked items from the shopping list */
+export function ClearCheckedButton() {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={isPending}
+      onClick={() => startTransition(async () => { await clearCheckedItems() })}
+    >
+      {isPending ? "Clearing…" : "Clear checked"}
+    </Button>
+  )
+}
+

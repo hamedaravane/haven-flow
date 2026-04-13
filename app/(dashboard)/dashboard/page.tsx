@@ -1,15 +1,17 @@
 import { headers } from "next/headers"
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm"
-import { AlertTriangle, DollarSign, TrendingDown, TrendingUp, Wallet } from "lucide-react"
+import { and, desc, eq, gte, lt, lte, sql } from "drizzle-orm"
+import { AlertTriangle, DollarSign, Package, TrendingDown, TrendingUp, Wallet } from "lucide-react"
+import Link from "next/link"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { budgets, transactions } from "@/lib/db/schema"
+import { budgets, inventory, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
-import { formatCurrency, currentMonth, monthBounds } from "@/lib/constants"
+import { formatCurrency, currentMonth, monthBounds, getExpiryStatus, formatExpiryLabel } from "@/lib/constants"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Button } from "@/components/ui/button"
 import { TransactionForm } from "@/components/features/transaction-form"
 import { DeleteTransactionButton } from "@/components/features/delete-buttons"
 
@@ -39,6 +41,16 @@ export default async function DashboardPage() {
   const totalIncome = parseFloat(totals?.income ?? "0")
   const totalExpenses = parseFloat(totals?.expenses ?? "0")
   const balance = totalIncome - totalExpenses
+
+  // ── Expiring items (within 3 days, or expired) ──────────────────────────────
+  const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+  const expiringItems = await db.query.inventory.findMany({
+    where: and(
+      eq(inventory.householdId, household.id),
+      lte(inventory.expiresAt, threeDaysFromNow)
+    ),
+    orderBy: [desc(inventory.expiresAt)],
+  })
 
   // ── Recent transactions ──────────────────────────────────────────────────────
   const recentTransactions = await db.query.transactions.findMany({
@@ -166,6 +178,51 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expiring items */}
+      {expiringItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="size-4 text-amber-500" />
+              Expiring soon
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="flex flex-col divide-y divide-border">
+              {expiringItems.map((item) => {
+                const status = getExpiryStatus(item.expiresAt ?? undefined)
+                return (
+                  <div key={item.id} className="flex items-center gap-3 px-6 py-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium">{item.name}</span>
+                      <p
+                        className={`mt-0.5 text-xs ${
+                          status === "expired" || status === "critical"
+                            ? "text-destructive"
+                            : "text-amber-600"
+                        }`}
+                      >
+                        {formatExpiryLabel(item.expiresAt ?? undefined)}
+                      </p>
+                    </div>
+                    {status === "expired" ? (
+                      <Badge variant="danger">Expired</Badge>
+                    ) : (
+                      <Badge variant="warning">Soon</Badge>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="px-6 py-3">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/inventory">View all inventory →</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Budget progress */}
       {enrichedBudgets.length > 0 && (
