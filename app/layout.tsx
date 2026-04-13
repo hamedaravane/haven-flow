@@ -3,6 +3,7 @@ import { Geist_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/features/toaster"
 import { cn } from "@/lib/utils"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   description: "Your household finance and pantry companion",
   manifest: "/manifest.json",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: light)", color: "#EFF6FF" },
     { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
 }
@@ -37,7 +38,10 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, inter.variable, "font-sans")}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

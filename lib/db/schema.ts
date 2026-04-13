@@ -72,6 +72,8 @@ export const households = pgTable("households", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().default("Our Home"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** Timestamp of the last push-notification batch sent for this household (for cooldown). */
+  notificationsSentAt: timestamp("notifications_sent_at"),
 })
 
 /**
@@ -177,6 +179,27 @@ export const shoppingListItems = pgTable("shopping_list_items", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 })
 
+/**
+ * Browser push-notification subscriptions (one per device per user).
+ * Stored so the server can send Web Push messages at any time.
+ */
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  householdId: text("household_id")
+    .notNull()
+    .references(() => households.id, { onDelete: "cascade" }),
+  /** The push endpoint URL provided by the browser */
+  endpoint: text("endpoint").notNull().unique(),
+  /** Public key (base64url) for message encryption */
+  p256dh: text("p256dh").notNull(),
+  /** Auth secret (base64url) for message encryption */
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+})
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -186,6 +209,7 @@ export const userRelations = relations(user, ({ many }) => ({
   transactions: many(transactions),
   inventoryItems: many(inventory),
   shoppingListItems: many(shoppingListItems),
+  pushSubscriptions: many(pushSubscriptions),
 }))
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -203,6 +227,7 @@ export const householdRelations = relations(households, ({ many }) => ({
   items: many(items),
   inventory: many(inventory),
   shoppingListItems: many(shoppingListItems),
+  pushSubscriptions: many(pushSubscriptions),
 }))
 
 export const householdMemberRelations = relations(householdMembers, ({ one }) => ({
@@ -246,4 +271,12 @@ export const shoppingListItemRelations = relations(shoppingListItems, ({ one }) 
     references: [households.id],
   }),
   addedByUser: one(user, { fields: [shoppingListItems.addedBy], references: [user.id] }),
+}))
+
+export const pushSubscriptionRelations = relations(pushSubscriptions, ({ one }) => ({
+  user: one(user, { fields: [pushSubscriptions.userId], references: [user.id] }),
+  household: one(households, {
+    fields: [pushSubscriptions.householdId],
+    references: [households.id],
+  }),
 }))

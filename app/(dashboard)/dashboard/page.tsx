@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { budgets, inventory, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency, currentMonth, monthBounds, getExpiryStatus, formatExpiryLabel } from "@/lib/constants"
+import { checkAndSendNotifications } from "@/lib/actions/notifications"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -18,6 +19,9 @@ import { DeleteTransactionButton } from "@/components/features/delete-buttons"
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) return null
+
+  // Trigger push notification check (respects 6-hour cooldown, no-op if no subscriptions)
+  void checkAndSendNotifications()
 
   const household = await getOrCreateHousehold(session.user.id)
   const month = currentMonth()
