@@ -134,6 +134,14 @@ export function formatCurrency(amount: number | string, currency = "IRR"): strin
   }
 }
 
+/**
+ * Returns the currency if it is a supported Currency, otherwise falls back to 'IRR'.
+ * Useful when validating a potentially-unknown string (e.g. from DB or URL param).
+ */
+export function resolveDefaultCurrency(currency: string): Currency {
+  return CURRENCIES.includes(currency as Currency) ? (currency as Currency) : "IRR"
+}
+
 /** Return the current month in YYYY-MM format */
 export function currentMonth(): string {
   const now = new Date()

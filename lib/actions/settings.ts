@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 
 import { auth } from "@/lib/auth"
@@ -144,6 +144,9 @@ export async function inviteMember(input: { email: string }) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
+  /** Normalised once — used for all comparisons and DB lookups. */
+  const normalizedEmail = parsed.data.email.toLowerCase()
+
   const inviterMembership = await requireMembership(session.user.id)
 
   // Enforce 2-person limit
@@ -155,13 +158,13 @@ export async function inviteMember(input: { email: string }) {
   }
 
   // Cannot invite yourself
-  if (parsed.data.email.toLowerCase() === session.user.email.toLowerCase()) {
+  if (normalizedEmail === session.user.email.toLowerCase()) {
     return { error: "You are already a member of this household" }
   }
 
-  // Look up the target user
+  // Look up the target user — use a case-insensitive DB comparison
   const targetUser = await db.query.user.findFirst({
-    where: eq(user.email, parsed.data.email.toLowerCase()),
+    where: sql`lower(${user.email}) = ${normalizedEmail}`,
   })
 
   if (!targetUser) {

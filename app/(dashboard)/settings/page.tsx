@@ -53,7 +53,6 @@ export default async function SettingsPage() {
       <ProfileSection initialName={session.user.name} email={session.user.email} />
 
       <HouseholdSection
-        householdId={household.id}
         householdName={household.name}
         members={members}
         currentUserId={session.user.id}

@@ -272,7 +272,6 @@ export interface HouseholdMember {
 }
 
 interface HouseholdSectionProps {
-  householdId: string
   householdName: string
   members: HouseholdMember[]
   /** The currently signed-in user's id — used to identify "you" in the list. */
@@ -290,13 +289,13 @@ const inviteSchema = z.object({
 type InviteValues = z.output<typeof inviteSchema>
 
 export function HouseholdSection({
-  householdId,
   householdName,
   members,
   currentUserId,
 }: HouseholdSectionProps) {
   const [isPendingName, startNameTransition] = useTransition()
   const [isPendingInvite, startInviteTransition] = useTransition()
+  const [, startRemoveTransition] = useTransition()
   const [removingId, setRemovingId] = useState<string | null>(null)
   /** Message shown after an invite attempt for a non-existent user. */
   const [inviteMessage, setInviteMessage] = useState<string | null>(null)
@@ -343,7 +342,7 @@ export function HouseholdSection({
 
   function handleRemove(memberId: string) {
     setRemovingId(memberId)
-    startNameTransition(async () => {
+    startRemoveTransition(async () => {
       const result = await removeMember({ memberId })
       setRemovingId(null)
       if (result.error) {
@@ -356,9 +355,6 @@ export function HouseholdSection({
 
   const isOwner = members.find((m) => m.user.id === currentUserId)?.role === "owner"
   const householdFull = members.length >= 2
-
-  // Silence unused variable warning — householdId is available for future use
-  void householdId
 
   return (
     <Card>

@@ -7,7 +7,7 @@ import { z } from "zod"
 
 import { createTransaction } from "@/lib/actions/transactions"
 import { cn } from "@/lib/utils"
-import { CURRENCIES, CURRENCY_LABELS, type Currency } from "@/lib/constants"
+import { CURRENCIES, CURRENCY_LABELS, resolveDefaultCurrency, type Currency } from "@/lib/constants"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -73,11 +73,6 @@ interface TransactionFormProps {
   onSuccess?: () => void
   /** Pre-fill the date; defaults to today */
   defaultDate?: string
-}
-
-/** Returns the currency if it's a valid known Currency, otherwise falls back to 'IRR'. */
-function resolveDefaultCurrency(currency: string): Currency {
-  return CURRENCIES.includes(currency as Currency) ? (currency as Currency) : "IRR"
 }
 
 /**
