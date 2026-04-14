@@ -80,7 +80,7 @@ export function ProfileSection({ initialName, email }: ProfileSectionProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Your display name is shown to your household partner and used in reports.
+          Your display name is shown across the app and in reports.
         </p>
         {/* Email — read-only */}
         <div className="flex flex-col gap-1">
