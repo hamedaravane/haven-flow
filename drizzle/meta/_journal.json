@@ -8,6 +8,13 @@
       "when": 1776157065739,
       "tag": "0000_sloppy_starhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776201950052,
+      "tag": "0001_adorable_power_man",
+      "breakpoints": true
     }
   ]
 }

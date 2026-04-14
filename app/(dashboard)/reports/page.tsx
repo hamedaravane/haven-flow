@@ -31,6 +31,7 @@ export default async function ReportsPage() {
   if (!session) return null
 
   const household = await getOrCreateHousehold(session.user.id)
+  const defaultCurrency = household.defaultCurrency
 
   // ── Build 6-month windows ─────────────────────────────────────────────────
   const months = Array.from({ length: 6 }, (_, i) => monthAgo(5 - i)) // oldest → newest
@@ -140,7 +141,7 @@ export default async function ReportsPage() {
             <p
               className={`text-2xl font-bold ${totalSaved >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
             >
-              {formatCurrency(totalSaved)}
+              {formatCurrency(totalSaved, defaultCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -152,7 +153,7 @@ export default async function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(avgMonthlyExpense)}</p>
+            <p className="text-2xl font-bold">{formatCurrency(avgMonthlyExpense, defaultCurrency)}</p>
           </CardContent>
         </Card>
 
@@ -169,7 +170,7 @@ export default async function ReportsPage() {
       </div>
 
       {/* ── Charts (client component) ──────────────────────────────────────── */}
-      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} />
+      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} />
     </div>
   )
 }

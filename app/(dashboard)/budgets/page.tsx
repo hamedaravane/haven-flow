@@ -157,10 +157,10 @@ export default async function BudgetsPage() {
                 <Progress value={b.pct} className="mt-2" />
 
                 <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                  <span>{formatCurrency(b.spent)} spent</span>
+                  <span>{formatCurrency(b.spent, household.defaultCurrency)} spent</span>
                   <span>
-                    {formatCurrency(Math.max(0, b.planned - b.spent))} left of{" "}
-                    {formatCurrency(b.planned)}
+                    {formatCurrency(Math.max(0, b.planned - b.spent), household.defaultCurrency)} left of{" "}
+                    {formatCurrency(b.planned, household.defaultCurrency)}
                   </span>
                 </div>
 
@@ -180,7 +180,7 @@ export default async function BudgetsPage() {
                             <span className="text-muted-foreground">
                               {sub.icon ?? "·"} {sub.name}
                             </span>
-                            <span className="tabular-nums">{formatCurrency(subSpent)}</span>
+                            <span className="tabular-nums">{formatCurrency(subSpent, household.defaultCurrency)}</span>
                           </div>
                         )
                       })}
@@ -219,7 +219,7 @@ export default async function BudgetsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm tabular-nums">
-                      {formatCurrency(b.plannedAmount)}
+                      {formatCurrency(b.plannedAmount, household.defaultCurrency)}
                     </span>
                     <DeleteBudgetButton budgetId={b.id} />
                   </div>

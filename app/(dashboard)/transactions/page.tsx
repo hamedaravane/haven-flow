@@ -54,7 +54,7 @@ export default async function TransactionsPage() {
           <CardTitle>Add transaction</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} />
+          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} />
         </CardContent>
       </Card>
 
@@ -125,7 +125,7 @@ export default async function TransactionsPage() {
                           }
                         >
                           {tx.type === "income" ? "+" : "−"}
-                          {formatCurrency(tx.amount)}
+                          {formatCurrency(tx.amount, tx.currency)}
                         </span>
                       </TableCell>
                       <TableCell>

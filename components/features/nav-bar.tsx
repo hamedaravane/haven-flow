@@ -10,6 +10,7 @@ import {
   BarChart2,
   ReceiptText,
   Tags,
+  Settings,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/shopping-list", label: "Shopping", icon: ShoppingCart },
   { href: "/reports", label: "Reports", icon: BarChart2 },
   { href: "/categories", label: "Categories", icon: Tags },
+  { href: "/settings", label: "Settings", icon: Settings },
 ]
 
 /**

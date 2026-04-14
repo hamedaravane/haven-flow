@@ -108,6 +108,8 @@ export const households = pgTable("households", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   /** Timestamp of the last push-notification batch sent for this household (for cooldown). */
   notificationsSentAt: timestamp("notifications_sent_at"),
+  /** Default currency for all household transactions (e.g. 'IRR', 'USD', 'USDT'). */
+  defaultCurrency: text("default_currency").notNull().default("IRR"),
 })
 
 /**
@@ -141,6 +143,8 @@ export const transactions = pgTable("transactions", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  /** Currency code for this transaction (e.g. 'IRR', 'USD', 'USDT'). */
+  currency: text("currency").notNull().default("IRR"),
   type: transactionTypeEnum("type").notNull(),
   /** Legacy text category — kept for data entered before the categories table existed. */
   category: text("category"),
