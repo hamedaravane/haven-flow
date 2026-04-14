@@ -96,11 +96,50 @@ export function formatExpiryLabel(expiresAt: Date | null | undefined): string {
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
-/** Format a number as a currency string (e.g. 1234.56 → "$1,234.56") */
-export function formatCurrency(amount: number | string, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    typeof amount === "string" ? parseFloat(amount) : amount
-  )
+/** Supported currencies for HavenFlow. */
+export const CURRENCIES = ["IRR", "USD", "USDT"] as const
+export type Currency = (typeof CURRENCIES)[number]
+
+export const CURRENCY_LABELS: Record<Currency, string> = {
+  IRR: "IRR — Iranian Rial (﷼)",
+  USD: "USD — US Dollar ($)",
+  USDT: "USDT — Tether (₮)",
+}
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  IRR: "﷼",
+  USD: "$",
+  USDT: "₮",
+}
+
+/**
+ * Format a number as a currency string using the given currency code.
+ * IRR and USD use Intl.NumberFormat; USDT uses a custom formatter since it
+ * is not an ISO 4217 code supported by the browser's locale engine.
+ */
+export function formatCurrency(amount: number | string, currency = "IRR"): string {
+  const value = typeof amount === "string" ? parseFloat(amount) : amount
+  if (isNaN(value)) return "—"
+
+  // USDT is not an ISO currency code — format manually.
+  if (currency === "USDT") {
+    return `₮${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }).format(value)}`
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value)
+  } catch {
+    // Fallback for any unrecognised currency code
+    return `${currency} ${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}`
+  }
+}
+
+/**
+ * Returns the currency if it is a supported Currency, otherwise falls back to 'IRR'.
+ * Useful when validating a potentially-unknown string (e.g. from DB or URL param).
+ */
+export function resolveDefaultCurrency(currency: string): Currency {
+  return CURRENCIES.includes(currency as Currency) ? (currency as Currency) : "IRR"
 }
 
 /** Return the current month in YYYY-MM format */

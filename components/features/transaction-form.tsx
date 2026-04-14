@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { createTransaction } from "@/lib/actions/transactions"
 import { cn } from "@/lib/utils"
+import { CURRENCIES, CURRENCY_LABELS, resolveDefaultCurrency, type Currency } from "@/lib/constants"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -39,6 +40,7 @@ const schema = z.object({
   type: z.enum(["income", "expense"]),
   /** The category UUID sent to the server (either top-level or subcategory). */
   categoryId: z.string().uuid("Please select a category"),
+  currency: z.enum([...CURRENCIES] as [Currency, ...Currency[]]),
   description: z.string().optional(),
   isHouseholdExpense: z.coerce.boolean(),
   transactionDate: z.string().min(1, "Please pick a date"),
@@ -65,6 +67,8 @@ interface TopLevelCategory {
 interface TransactionFormProps {
   /** Top-level categories (with their subcategories) from the DB */
   categories: TopLevelCategory[]
+  /** Default currency from household settings */
+  defaultCurrency?: string
   /** Called when the transaction is successfully saved */
   onSuccess?: () => void
   /** Pre-fill the date; defaults to today */
@@ -80,7 +84,7 @@ interface TransactionFormProps {
  *    The transaction is saved against the chosen subcategory's ID.
  * 3. If no subcategories exist, the top-level category ID is used directly.
  */
-export function TransactionForm({ categories, onSuccess, defaultDate }: TransactionFormProps) {
+export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess, defaultDate }: TransactionFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -95,6 +99,7 @@ export function TransactionForm({ categories, onSuccess, defaultDate }: Transact
       amount: undefined,
       type: "expense",
       categoryId: "",
+      currency: resolveDefaultCurrency(defaultCurrency),
       description: "",
       isHouseholdExpense: true,
       transactionDate: todayISO,
@@ -130,6 +135,7 @@ export function TransactionForm({ categories, onSuccess, defaultDate }: Transact
           amount: undefined,
           type: "expense",
           categoryId: "",
+          currency: resolveDefaultCurrency(defaultCurrency),
           description: "",
           isHouseholdExpense: true,
           transactionDate: todayISO,
@@ -217,6 +223,32 @@ export function TransactionForm({ categories, onSuccess, defaultDate }: Transact
             )}
           />
         </div>
+
+        {/* Currency selector */}
+        <FormField
+          control={form.control}
+          name="currency"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Currency</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CURRENCY_LABELS[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* ── Two-level category selects ──────────────────────────────────── */}
 

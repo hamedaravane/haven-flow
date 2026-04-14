@@ -158,7 +158,7 @@ export default async function DashboardPage() {
               <AlertTriangle className="size-4 shrink-0" />
               <span>
                 <strong>{w.categoryLabel}</strong>: {w.pct}% of budget used (
-                {formatCurrency(w.spent)} / {formatCurrency(w.planned)})
+                {formatCurrency(w.spent, household.defaultCurrency)} / {formatCurrency(w.planned, household.defaultCurrency)})
               </span>
             </div>
           ))}
@@ -176,7 +176,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xl font-semibold text-emerald-600 tabular-nums">
-              {formatCurrency(totalIncome)}
+              {formatCurrency(totalIncome, household.defaultCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -190,7 +190,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xl font-semibold text-rose-600 tabular-nums">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(totalExpenses, household.defaultCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -208,7 +208,7 @@ export default async function DashboardPage() {
                 balance >= 0 ? "text-foreground" : "text-destructive"
               }`}
             >
-              {formatCurrency(balance)}
+              {formatCurrency(balance, household.defaultCurrency)}
             </p>
           </CardContent>
         </Card>
@@ -271,7 +271,7 @@ export default async function DashboardPage() {
                 <div className="mb-1 flex items-center justify-between text-sm">
                   <span className="font-medium">{b.categoryLabel}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {formatCurrency(b.spent)} / {formatCurrency(b.planned)}
+                    {formatCurrency(b.spent, household.defaultCurrency)} / {formatCurrency(b.planned, household.defaultCurrency)}
                   </span>
                 </div>
                 <Progress value={b.pct} />
@@ -290,7 +290,7 @@ export default async function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} />
+          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} />
         </CardContent>
       </Card>
 
@@ -332,7 +332,7 @@ export default async function DashboardPage() {
                         }`}
                       >
                         {tx.type === "income" ? "+" : "−"}
-                        {formatCurrency(tx.amount)}
+                        {formatCurrency(tx.amount, tx.currency)}
                       </span>
                       <DeleteTransactionButton transactionId={tx.id} />
                     </div>
