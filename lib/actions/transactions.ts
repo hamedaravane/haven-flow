@@ -18,7 +18,8 @@ const transactionSchema = z.object({
     .positive("Amount must be positive")
     .multipleOf(0.01, "Amount can have at most 2 decimal places"),
   type: z.enum(["income", "expense"]),
-  category: z.string().min(1, "Please select a category"),
+  /** UUID of the selected category (leaf level — subcategory or top-level). */
+  categoryId: z.string().uuid("Please select a valid category"),
   description: z.string().optional(),
   isHouseholdExpense: z.coerce.boolean().default(true),
   /** ISO date string from <input type="date"> e.g. "2025-01-15" */
@@ -46,14 +47,15 @@ export async function createTransaction(input: TransactionInput) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  const { amount, type, category, description, isHouseholdExpense, transactionDate } = parsed.data
+  const { amount, type, categoryId, description, isHouseholdExpense, transactionDate } =
+    parsed.data
 
   await db.insert(transactions).values({
     householdId: household.id,
     userId: session.user.id,
     amount: String(amount),
     type,
-    category,
+    categoryId,
     description: description || null,
     isHouseholdExpense,
     transactionDate: new Date(transactionDate),
@@ -112,14 +114,15 @@ export async function updateTransaction(transactionId: string, input: Transactio
     return { error: "Transaction not found" }
   }
 
-  const { amount, type, category, description, isHouseholdExpense, transactionDate } = parsed.data
+  const { amount, type, categoryId, description, isHouseholdExpense, transactionDate } =
+    parsed.data
 
   await db
     .update(transactions)
     .set({
       amount: String(amount),
       type,
-      category,
+      categoryId,
       description: description || null,
       isHouseholdExpense,
       transactionDate: new Date(transactionDate),

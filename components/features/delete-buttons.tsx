@@ -7,6 +7,7 @@ import { deleteTransaction } from "@/lib/actions/transactions"
 import { deleteBudget } from "@/lib/actions/budgets"
 import { deleteInventoryItem } from "@/lib/actions/inventory"
 import { deleteShoppingItem, clearCheckedItems } from "@/lib/actions/shopping-list"
+import { deleteCategory } from "@/lib/actions/categories"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 
@@ -131,6 +132,37 @@ export function ClearCheckedButton() {
       }
     >
       {isPending ? "Clearing…" : "Clear checked"}
+    </Button>
+  )
+}
+
+interface DeleteCategoryButtonProps {
+  categoryId: string
+  categoryName: string
+}
+
+export function DeleteCategoryButton({ categoryId, categoryName }: DeleteCategoryButtonProps) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={isPending}
+      onClick={() => {
+        if (!confirm(`Delete "${categoryName}"? This cannot be undone.`)) return
+        startTransition(async () => {
+          const result = await deleteCategory(categoryId)
+          if (result.error) {
+            toast(result.error, { variant: "error" })
+          } else {
+            toast(`"${categoryName}" deleted`, { variant: "success" })
+          }
+        })
+      }}
+      aria-label={`Delete category ${categoryName}`}
+    >
+      <Trash2 className="size-3.5 text-muted-foreground" />
     </Button>
   )
 }

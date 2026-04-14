@@ -17,7 +17,8 @@ const budgetSchema = z.object({
   month: z
     .string()
     .regex(/^\d{4}-\d{2}$/, "Month must be in YYYY-MM format"),
-  category: z.string().min(1, "Please select a category"),
+  /** UUID of the category (typically a top-level category for budget rollups). */
+  categoryId: z.string().uuid("Please select a valid category"),
   plannedAmount: z.coerce
     .number({ error: "Amount must be a number" })
     .positive("Amount must be positive")
@@ -45,14 +46,14 @@ export async function upsertBudget(input: BudgetInput) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  const { month, category, plannedAmount } = parsed.data
+  const { month, categoryId, plannedAmount } = parsed.data
 
   // Check if a budget already exists for this household/month/category
   const existing = await db.query.budgets.findFirst({
     where: and(
       eq(budgets.householdId, household.id),
       eq(budgets.month, month),
-      eq(budgets.category, category)
+      eq(budgets.categoryId, categoryId)
     ),
   })
 
@@ -65,7 +66,7 @@ export async function upsertBudget(input: BudgetInput) {
     await db.insert(budgets).values({
       householdId: household.id,
       month,
-      category,
+      categoryId,
       plannedAmount: String(plannedAmount),
     })
   }

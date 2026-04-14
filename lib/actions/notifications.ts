@@ -68,12 +68,13 @@ export async function checkAndSendNotifications() {
 
   const currentBudgets = await db.query.budgets.findMany({
     where: and(eq(budgets.householdId, household.id), eq(budgets.month, month)),
+    with: { category: true },
   })
 
   if (currentBudgets.length > 0) {
     const spentRows = await db
       .select({
-        category: transactions.category,
+        categoryId: transactions.categoryId,
         total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
       })
       .from(transactions)
@@ -85,20 +86,22 @@ export async function checkAndSendNotifications() {
           lt(transactions.transactionDate, end)
         )
       )
-      .groupBy(transactions.category)
+      .groupBy(transactions.categoryId)
 
-    const spentMap = Object.fromEntries(spentRows.map((r) => [r.category, parseFloat(r.total)]))
+    const spentMap = Object.fromEntries(
+      spentRows.map((r) => [r.categoryId ?? "null", parseFloat(r.total)])
+    )
 
     const overBudget = currentBudgets.filter((b) => {
       const planned = parseFloat(b.plannedAmount)
-      const spent = spentMap[b.category] ?? 0
+      const spent = spentMap[b.categoryId ?? "null"] ?? 0
       return planned > 0 && spent / planned >= 0.8
     })
 
     if (overBudget.length > 0) {
       const cats = overBudget
         .slice(0, 3)
-        .map((b) => b.category)
+        .map((b) => b.category?.name ?? "Unknown")
         .join(", ")
       const extra = overBudget.length > 3 ? ` and ${overBudget.length - 3} more` : ""
       messages.push({

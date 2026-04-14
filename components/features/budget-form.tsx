@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 
 import { upsertBudget } from "@/lib/actions/budgets"
-import { EXPENSE_CATEGORIES, currentMonth } from "@/lib/constants"
+import { currentMonth } from "@/lib/constants"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,7 +21,9 @@ import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -30,7 +32,8 @@ import {
 
 const schema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM format"),
-  category: z.string().min(1, "Please select a category"),
+  /** Top-level category UUID (budgets track at the top-level for easy rollups). */
+  categoryId: z.string().uuid("Please select a category"),
   plannedAmount: z.coerce
     .number({ error: "Amount must be a number" })
     .positive("Amount must be positive"),
@@ -38,7 +41,18 @@ const schema = z.object({
 
 type FormValues = z.output<typeof schema>
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface TopLevelCategory {
+  id: string
+  name: string
+  icon: string | null
+  color: string | null
+}
+
 interface BudgetFormProps {
+  /** Top-level categories from the DB */
+  topLevelCategories: TopLevelCategory[]
   onSuccess?: () => void
   /** Pre-fill with an existing budget for editing */
   defaultValues?: Partial<FormValues>
@@ -46,9 +60,10 @@ interface BudgetFormProps {
 
 /**
  * Form for creating or updating a monthly budget.
- * Uses upsertBudget server action (creates or replaces by month+category).
+ * Budgets are linked to top-level categories for convenient rollup views.
+ * Uses upsertBudget server action (creates or replaces by month+categoryId).
  */
-export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
+export function BudgetForm({ topLevelCategories, onSuccess, defaultValues }: BudgetFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -56,7 +71,7 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       month: currentMonth(),
-      category: "",
+      categoryId: "",
       plannedAmount: undefined,
       ...defaultValues,
     },
@@ -69,7 +84,7 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
       if (result.error) {
         setServerError(result.error)
       } else {
-        form.reset({ month: currentMonth(), category: "", plannedAmount: undefined })
+        form.reset({ month: currentMonth(), categoryId: "", plannedAmount: undefined })
         toast("Budget saved", { variant: "success" })
         onSuccess?.()
       }
@@ -117,10 +132,10 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
           />
         </div>
 
-        {/* Category */}
+        {/* Category — top-level only for budgets */}
         <FormField
           control={form.control}
-          name="category"
+          name="categoryId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
@@ -131,13 +146,26 @@ export function BudgetForm({ onSuccess, defaultValues }: BudgetFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {EXPENSE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
+                  {topLevelCategories.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      No categories yet. Add some in Categories settings.
+                    </div>
+                  ) : (
+                    <SelectGroup>
+                      <SelectLabel>Top-level categories</SelectLabel>
+                      {topLevelCategories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.icon ? `${c.icon} ` : ""}
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Budgets track at the top-level; subcategory spending rolls up automatically.
+              </p>
               <FormMessage />
             </FormItem>
           )}

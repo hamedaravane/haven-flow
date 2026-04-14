@@ -21,9 +21,21 @@ export default async function TransactionsPage() {
 
   const household = await getOrCreateHousehold(session.user.id)
 
+  // Load top-level categories (with their subcategories) for the form
+  const topLevelCategories = await db.query.categories.findMany({
+    where: (c, { and, isNull }) =>
+      and(eq(c.householdId, household.id), isNull(c.parentId)),
+    with: { subcategories: { orderBy: (c, { asc }) => [asc(c.name)] } },
+    orderBy: (c, { asc }) => [asc(c.name)],
+  })
+
   const allTransactions = await db.query.transactions.findMany({
     where: eq(transactions.householdId, household.id),
-    with: { user: true },
+    with: {
+      user: true,
+      // Resolve the category (and its parent) for display
+      category: { with: { parent: true } },
+    },
     orderBy: [desc(transactions.transactionDate)],
   })
 
@@ -42,7 +54,7 @@ export default async function TransactionsPage() {
           <CardTitle>Add transaction</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm />
+          <TransactionForm categories={topLevelCategories} />
         </CardContent>
       </Card>
 
@@ -74,42 +86,54 @@ export default async function TransactionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allTransactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(tx.transactionDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <Badge variant={tx.type === "income" ? "income" : "expense"}>
-                          {tx.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{tx.category}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-sm">
-                      {tx.description ?? (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      <span
-                        className={
-                          tx.type === "income" ? "text-emerald-600" : "text-foreground"
-                        }
-                      >
-                        {tx.type === "income" ? "+" : "−"}
-                        {formatCurrency(tx.amount)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DeleteTransactionButton transactionId={tx.id} />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {allTransactions.map((tx) => {
+                  // Build the display label: "Parent › Sub" or just the name
+                  // tx.category is the JOIN result (CategoryType | null) from the `with` clause.
+                  // Old transactions without a categoryId will have null here; show "—" as fallback.
+                  const cat = tx.category
+                  const categoryLabel = cat
+                    ? cat.parent
+                      ? `${cat.parent.icon ?? ""} ${cat.parent.name} › ${cat.icon ?? ""} ${cat.name}`.trim()
+                      : `${cat.icon ?? ""} ${cat.name}`.trim()
+                    : "—"
+
+                  return (
+                    <TableRow key={tx.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {new Date(tx.transactionDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant={tx.type === "income" ? "income" : "expense"}>
+                            {tx.type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{categoryLabel}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[160px] truncate text-sm">
+                        {tx.description ?? (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        <span
+                          className={
+                            tx.type === "income" ? "text-emerald-600" : "text-foreground"
+                          }
+                        >
+                          {tx.type === "income" ? "+" : "−"}
+                          {formatCurrency(tx.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <DeleteTransactionButton transactionId={tx.id} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
