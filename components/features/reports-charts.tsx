@@ -15,7 +15,7 @@ import {
 } from "recharts"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatCurrency } from "@/lib/constants"
+import { formatCurrency, CURRENCY_SYMBOLS, type Currency } from "@/lib/constants"
 
 // ── Colour palette for pie chart slices ──────────────────────────────────────
 const CHART_COLORS = [
@@ -119,12 +119,13 @@ export function ReportsCharts({ monthlyData, categoryData, defaultCurrency = "IR
                 className="text-muted-foreground"
               />
               <YAxis
-                tickFormatter={(v: number) =>
-                  v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)
-                }
+                tickFormatter={(v: number) => {
+                  const sym = CURRENCY_SYMBOLS[defaultCurrency as Currency] ?? defaultCurrency
+                  return v >= 1000 ? `${sym}${Math.round(v / 1000)}k` : `${sym}${v}`
+                }}
                 tick={{ fontSize: 12, fill: "currentColor" }}
                 className="text-muted-foreground"
-                width={48}
+                width={56}
               />
               <Tooltip content={<BarTooltip currency={defaultCurrency} />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />

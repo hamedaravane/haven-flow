@@ -75,6 +75,11 @@ interface TransactionFormProps {
   defaultDate?: string
 }
 
+/** Returns the currency if it's a valid known Currency, otherwise falls back to 'IRR'. */
+function resolveDefaultCurrency(currency: string): Currency {
+  return CURRENCIES.includes(currency as Currency) ? (currency as Currency) : "IRR"
+}
+
 /**
  * Transaction form with two-level dependent category selects.
  *
@@ -99,7 +104,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
       amount: undefined,
       type: "expense",
       categoryId: "",
-      currency: (CURRENCIES.includes(defaultCurrency as Currency) ? defaultCurrency : "IRR") as Currency,
+      currency: resolveDefaultCurrency(defaultCurrency),
       description: "",
       isHouseholdExpense: true,
       transactionDate: todayISO,
@@ -135,7 +140,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
           amount: undefined,
           type: "expense",
           categoryId: "",
-          currency: (CURRENCIES.includes(defaultCurrency as Currency) ? defaultCurrency : "IRR") as Currency,
+          currency: resolveDefaultCurrency(defaultCurrency),
           description: "",
           isHouseholdExpense: true,
           transactionDate: todayISO,

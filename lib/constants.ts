@@ -123,7 +123,7 @@ export function formatCurrency(amount: number | string, currency = "IRR"): strin
 
   // USDT is not an ISO currency code — format manually.
   if (currency === "USDT") {
-    return `₮${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)}`
+    return `₮${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }).format(value)}`
   }
 
   try {
