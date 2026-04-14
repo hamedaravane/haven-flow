@@ -1,13 +1,15 @@
 import { headers } from "next/headers"
 import { and, eq, gte, lt, sql } from "drizzle-orm"
 import type { Metadata } from "next"
+import { Users } from "lucide-react"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { transactions, categories } from "@/lib/db/schema"
+import { transactions, categories, householdMembers } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { ReportsCharts } from "@/components/features/reports-charts"
 
 export const metadata: Metadata = { title: "Reports" }
@@ -119,6 +121,83 @@ export default async function ReportsPage() {
       amount: r.amount,
     }))
 
+  // ── Per-member spending for current month ─────────────────────────────────
+  const members = await db.query.householdMembers.findMany({
+    where: eq(householdMembers.householdId, household.id),
+    with: { user: true },
+    orderBy: (m, { asc }) => [asc(m.joinedAt)],
+  })
+
+  const perUserRows = await db
+    .select({
+      userId: transactions.userId,
+      total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.householdId, household.id),
+        eq(transactions.type, "expense"),
+        gte(transactions.transactionDate, cmStart),
+        lt(transactions.transactionDate, cmEnd)
+      )
+    )
+    .groupBy(transactions.userId)
+
+  // Per-member top category (by spend) for the current month
+  const perUserCategoryRows = await db
+    .select({
+      userId: transactions.userId,
+      categoryId: transactions.categoryId,
+      total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.householdId, household.id),
+        eq(transactions.type, "expense"),
+        gte(transactions.transactionDate, cmStart),
+        lt(transactions.transactionDate, cmEnd)
+      )
+    )
+    .groupBy(transactions.userId, transactions.categoryId)
+    .orderBy(sql`SUM(${transactions.amount}) DESC`)
+
+  /**
+   * For each member: resolve the top category name by rolling up subcategory
+   * spending to the parent top-level category label.
+   */
+  function topCategoryForUser(userId: string): string | null {
+    const userRows = perUserCategoryRows.filter((r) => r.userId === userId)
+    // Roll up to top-level
+    const rollupMap: Record<string, { name: string; icon: string | null; amount: number }> = {}
+    for (const r of userRows) {
+      const cat = r.categoryId ? categoryMap[r.categoryId] : undefined
+      const top = cat?.parent ?? cat
+      if (!top) continue
+      rollupMap[top.id] = {
+        name: top.name,
+        icon: top.icon,
+        amount: (rollupMap[top.id]?.amount ?? 0) + parseFloat(r.total),
+      }
+    }
+    const sorted = Object.values(rollupMap).sort((a, b) => b.amount - a.amount)
+    const top = sorted[0]
+    if (!top) return null
+    return top.icon ? `${top.icon} ${top.name}` : top.name
+  }
+
+  const memberSpending = members.map((m) => ({
+    userId: m.userId,
+    name: m.user.name,
+    role: m.role,
+    isCurrentUser: m.userId === session.user.id,
+    total: parseFloat(perUserRows.find((r) => r.userId === m.userId)?.total ?? "0"),
+    topCategory: topCategoryForUser(m.userId),
+  }))
+
+  const totalMemberSpend = memberSpending.reduce((s, m) => s + m.total, 0)
+
   // ── Summary stats ─────────────────────────────────────────────────────────
   const totalSaved = monthlyData.reduce((s, m) => s + (m.income - m.expenses), 0)
   const avgMonthlyExpense =
@@ -168,6 +247,84 @@ export default async function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Spending by Member (this month) ───────────────────────────────── */}
+      {memberSpending.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Users className="size-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Spending by Member —{" "}
+              {new Date(currentMonth + "-01").toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </h2>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {memberSpending.map((m) => {
+              const pct =
+                totalMemberSpend > 0
+                  ? Math.round((m.total / totalMemberSpend) * 100)
+                  : 0
+
+              return (
+                <Card key={m.userId}>
+                  <CardContent className="flex flex-col gap-3 pt-5">
+                    {/* Name + role */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate font-medium">
+                          {m.name}
+                          {m.isCurrentUser && (
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              (you)
+                            </span>
+                          )}
+                        </span>
+                        <Badge variant={m.role === "owner" ? "income" : "outline"} className="shrink-0">
+                          {m.role}
+                        </Badge>
+                      </div>
+                      {totalMemberSpend > 0 && (
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {pct}%
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Total spent */}
+                    <p className="text-2xl font-bold tabular-nums">
+                      {m.total > 0
+                        ? formatCurrency(m.total, defaultCurrency)
+                        : <span className="text-muted-foreground text-base font-normal">No expenses yet</span>
+                      }
+                    </p>
+
+                    {/* Top category */}
+                    {m.topCategory && (
+                      <p className="text-xs text-muted-foreground">
+                        Top category: <span className="font-medium text-foreground">{m.topCategory}</span>
+                      </p>
+                    )}
+
+                    {/* Proportion bar */}
+                    {totalMemberSpend > 0 && (
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Charts (client component) ──────────────────────────────────────── */}
       <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} />

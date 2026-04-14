@@ -79,6 +79,9 @@ export function ProfileSection({ initialName, email }: ProfileSectionProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          Your display name is shown to your household partner and used in reports.
+        </p>
         {/* Email — read-only */}
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium">Email</span>
@@ -365,6 +368,10 @@ export function HouseholdSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        <p className="text-sm text-muted-foreground">
+          Your shared household — all transactions, budgets, and inventory are scoped here.
+          The owner can rename the household and manage members.
+        </p>
         {/* ── Rename ─────────────────────────────────────────────────── */}
         {isOwner ? (
           <Form {...nameForm}>
