@@ -24,16 +24,39 @@ export default async function BudgetsPage() {
   const month = currentMonth()
   const { start, end } = monthBounds(month)
 
-  // All budgets for this household
-  const allBudgets = await db.query.budgets.findMany({
-    where: eq(budgets.householdId, household.id),
-    orderBy: (b, { desc }) => [desc(b.month), b.category],
+  // Load top-level categories for the budget form
+  const topLevelCategories = await db.query.categories.findMany({
+    where: (c, { and, isNull }) =>
+      and(eq(c.householdId, household.id), isNull(c.parentId)),
+    orderBy: (c, { asc }) => [asc(c.name)],
   })
 
-  // Calculate spent per category for the current month
-  const spentRows = await db
+  // All budgets for this household (with category relations)
+  const allBudgets = await db.query.budgets.findMany({
+    where: eq(budgets.householdId, household.id),
+    with: { category: true },
+    orderBy: (b, { desc }) => [desc(b.month)],
+  })
+
+  // All subcategory IDs grouped by top-level category
+  // We need this to roll up subcategory spending into parent budgets
+  const allSubcategories = await db.query.categories.findMany({
+    where: (c, { and, isNotNull }) =>
+      and(eq(c.householdId, household.id), isNotNull(c.parentId)),
+  })
+
+  // Build a map: parentId → [subcategoryId, ...]
+  const subsByParent = allSubcategories.reduce<Record<string, string[]>>((acc, sub) => {
+    if (sub.parentId) {
+      acc[sub.parentId] = [...(acc[sub.parentId] ?? []), sub.id]
+    }
+    return acc
+  }, {})
+
+  // Fetch all current-month expense transactions with their category IDs
+  const expenseRows = await db
     .select({
-      category: transactions.category,
+      categoryId: transactions.categoryId,
       total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
     })
     .from(transactions)
@@ -45,21 +68,52 @@ export default async function BudgetsPage() {
         lt(transactions.transactionDate, end)
       )
     )
-    .groupBy(transactions.category)
+    .groupBy(transactions.categoryId)
 
-  const spentMap = Object.fromEntries(spentRows.map((r) => [r.category, parseFloat(r.total)]))
+  // Build a spending map: categoryId → amount
+  const spentMap = Object.fromEntries(
+    expenseRows.map((r) => [r.categoryId ?? "null", parseFloat(r.total)])
+  )
 
-  // Enrich budgets with spent amount
+  /**
+   * Calculate total spending for a category, including all its subcategories.
+   * This gives the "rollup" view for top-level budgets.
+   */
+  function getSpentForCategory(categoryId: string): number {
+    const direct = spentMap[categoryId] ?? 0
+    const subs = subsByParent[categoryId] ?? []
+    const subTotal = subs.reduce((sum, subId) => sum + (spentMap[subId] ?? 0), 0)
+    return direct + subTotal
+  }
+
+  // Enrich budgets with spent amount (rolled up from subcategories)
   const currentBudgets = allBudgets
     .filter((b) => b.month === month)
     .map((b) => {
       const planned = parseFloat(b.plannedAmount)
-      const spent = spentMap[b.category] ?? 0
+      const spent = b.categoryId ? getSpentForCategory(b.categoryId) : 0
       const pct = planned > 0 ? Math.round((spent / planned) * 100) : 0
-      return { ...b, planned, spent, pct }
+      const categoryLabel = b.category
+        ? `${b.category.icon ?? ""} ${b.category.name}`.trim()
+        : b.category ?? "Unknown"
+      return { ...b, planned, spent, pct, categoryLabel }
     })
 
-  const pastBudgets = allBudgets.filter((b) => b.month !== month)
+  const pastBudgets = allBudgets
+    .filter((b) => b.month !== month)
+    .map((b) => ({
+      ...b,
+      categoryLabel: b.category
+        ? `${b.category.icon ?? ""} ${b.category.name}`.trim()
+        : b.category ?? "Unknown",
+    }))
+
+  const topLevelForForm = topLevelCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    icon: c.icon,
+    color: c.color,
+  }))
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,7 +137,7 @@ export default async function BudgetsPage() {
               <CardContent className="pt-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="truncate text-sm font-medium">{b.category}</span>
+                    <span className="truncate text-sm font-medium">{b.categoryLabel}</span>
                     {b.pct >= 90 && (
                       <Badge variant="danger" className="shrink-0">
                         <AlertTriangle className="mr-1 size-3" />
@@ -109,6 +163,30 @@ export default async function BudgetsPage() {
                     {formatCurrency(b.planned)}
                   </span>
                 </div>
+
+                {/* Show subcategory breakdown if this top-level has subcategories */}
+                {b.categoryId && (subsByParent[b.categoryId] ?? []).length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                      Subcategory breakdown
+                    </summary>
+                    <div className="mt-2 flex flex-col gap-1 pl-2 border-l-2 border-border">
+                      {(subsByParent[b.categoryId] ?? []).map((subId) => {
+                        const sub = allSubcategories.find((s) => s.id === subId)
+                        const subSpent = spentMap[subId] ?? 0
+                        if (!sub || subSpent === 0) return null
+                        return (
+                          <div key={subId} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {sub.icon ?? "·"} {sub.name}
+                            </span>
+                            <span className="tabular-nums">{formatCurrency(subSpent)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </details>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -121,7 +199,7 @@ export default async function BudgetsPage() {
           <CardTitle>Set a budget</CardTitle>
         </CardHeader>
         <CardContent>
-          <BudgetForm />
+          <BudgetForm topLevelCategories={topLevelForForm} />
         </CardContent>
       </Card>
 
@@ -136,7 +214,7 @@ export default async function BudgetsPage() {
               {pastBudgets.map((b) => (
                 <div key={b.id} className="flex items-center justify-between py-2.5">
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">{b.category}</span>
+                    <span className="text-sm font-medium">{b.categoryLabel}</span>
                     <span className="text-xs text-muted-foreground">{b.month}</span>
                   </div>
                   <div className="flex items-center gap-2">

@@ -9,6 +9,7 @@ import {
   PiggyBank,
   BarChart2,
   ReceiptText,
+  Tags,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/shopping-list", label: "Shopping", icon: ShoppingCart },
   { href: "/reports", label: "Reports", icon: BarChart2 },
+  { href: "/categories", label: "Categories", icon: Tags },
 ]
 
 /**

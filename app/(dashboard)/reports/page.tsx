@@ -4,7 +4,7 @@ import type { Metadata } from "next"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { transactions } from "@/lib/db/schema"
+import { transactions, categories } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -68,12 +68,21 @@ export default async function ReportsPage() {
   })
 
   // ── Category breakdown for current month ──────────────────────────────────
+  // We join transactions with categories to get the category name.
+  // Subcategory spending rolls up to the parent top-level category.
   const currentMonth = monthAgo(0)
   const { start: cmStart, end: cmEnd } = monthBounds(currentMonth)
 
-  const categoryRows = await db
+  // Load all subcategories so we can resolve parentId → top-level name
+  const allCategories = await db.query.categories.findMany({
+    where: eq(categories.householdId, household.id),
+    with: { parent: true },
+  })
+  const categoryMap = Object.fromEntries(allCategories.map((c) => [c.id, c]))
+
+  const rawCategoryRows = await db
     .select({
-      category: transactions.category,
+      categoryId: transactions.categoryId,
       total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
     })
     .from(transactions)
@@ -85,13 +94,29 @@ export default async function ReportsPage() {
         lt(transactions.transactionDate, cmEnd)
       )
     )
-    .groupBy(transactions.category)
+    .groupBy(transactions.categoryId)
     .orderBy(sql`SUM(${transactions.amount}) DESC`)
 
-  const categoryData = categoryRows.map((r) => ({
-    category: r.category,
-    amount: parseFloat(r.total),
-  }))
+  // Roll up subcategory spending to top-level categories
+  const rollup: Record<string, { name: string; amount: number; icon: string | null }> = {}
+  for (const row of rawCategoryRows) {
+    const cat = row.categoryId ? categoryMap[row.categoryId] : undefined
+    const topLevel = cat?.parent ?? cat
+    if (!topLevel) continue
+    const key = topLevel.id
+    rollup[key] = {
+      name: topLevel.name,
+      icon: topLevel.icon,
+      amount: (rollup[key]?.amount ?? 0) + parseFloat(row.total),
+    }
+  }
+
+  const categoryData = Object.values(rollup)
+    .sort((a, b) => b.amount - a.amount)
+    .map((r) => ({
+      category: r.icon ? `${r.icon} ${r.name}` : r.name,
+      amount: r.amount,
+    }))
 
   // ── Summary stats ─────────────────────────────────────────────────────────
   const totalSaved = monthlyData.reduce((s, m) => s + (m.income - m.expenses), 0)

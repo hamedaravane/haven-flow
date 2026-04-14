@@ -59,32 +59,63 @@ export default async function DashboardPage() {
   // ── Recent transactions ──────────────────────────────────────────────────────
   const recentTransactions = await db.query.transactions.findMany({
     where: eq(transactions.householdId, household.id),
+    with: { category: { with: { parent: true } } },
     orderBy: [desc(transactions.transactionDate)],
     limit: 5,
+  })
+
+  // ── Top-level categories for the quick-add form ───────────────────────────
+  const topLevelCategories = await db.query.categories.findMany({
+    where: (c, { and, isNull }) =>
+      and(eq(c.householdId, household.id), isNull(c.parentId)),
+    with: { subcategories: { orderBy: (c, { asc }) => [asc(c.name)] } },
+    orderBy: (c, { asc }) => [asc(c.name)],
   })
 
   // ── Budget progress for current month ────────────────────────────────────────
   const currentBudgets = await db.query.budgets.findMany({
     where: and(eq(budgets.householdId, household.id), eq(budgets.month, month)),
-    orderBy: (b, { asc }) => [asc(b.category)],
+    with: { category: true },
+    orderBy: (b, { asc }) => [asc(b.createdAt)],
   })
+
+  // All subcategories for rollup
+  const allSubcategories = await db.query.categories.findMany({
+    where: (c, { and, isNotNull }) =>
+      and(eq(c.householdId, household.id), isNotNull(c.parentId)),
+  })
+  const subsByParent = allSubcategories.reduce<Record<string, string[]>>((acc, sub) => {
+    if (sub.parentId) acc[sub.parentId] = [...(acc[sub.parentId] ?? []), sub.id]
+    return acc
+  }, {})
 
   const spentRows = await db
     .select({
-      category: transactions.category,
+      categoryId: transactions.categoryId,
       total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
     })
     .from(transactions)
     .where(and(monthWhere, eq(transactions.type, "expense")))
-    .groupBy(transactions.category)
+    .groupBy(transactions.categoryId)
 
-  const spentMap = Object.fromEntries(spentRows.map((r) => [r.category, parseFloat(r.total)]))
+  const spentMap = Object.fromEntries(
+    spentRows.map((r) => [r.categoryId ?? "null", parseFloat(r.total)])
+  )
+
+  function getSpentForCategory(categoryId: string): number {
+    const direct = spentMap[categoryId] ?? 0
+    const subs = subsByParent[categoryId] ?? []
+    return direct + subs.reduce((sum, id) => sum + (spentMap[id] ?? 0), 0)
+  }
 
   const enrichedBudgets = currentBudgets.map((b) => {
     const planned = parseFloat(b.plannedAmount)
-    const spent = spentMap[b.category] ?? 0
+    const spent = b.categoryId ? getSpentForCategory(b.categoryId) : 0
     const pct = planned > 0 ? Math.round((spent / planned) * 100) : 0
-    return { ...b, planned, spent, pct }
+    const categoryLabel = b.category
+      ? `${b.category.icon ?? ""} ${b.category.name}`.trim()
+      : "Unknown"
+    return { ...b, planned, spent, pct, categoryLabel }
   })
 
   // Budget warnings (≥70%)
@@ -126,7 +157,7 @@ export default async function DashboardPage() {
             >
               <AlertTriangle className="size-4 shrink-0" />
               <span>
-                <strong>{w.category}</strong>: {w.pct}% of budget used (
+                <strong>{w.categoryLabel}</strong>: {w.pct}% of budget used (
                 {formatCurrency(w.spent)} / {formatCurrency(w.planned)})
               </span>
             </div>
@@ -238,7 +269,7 @@ export default async function DashboardPage() {
             {enrichedBudgets.map((b) => (
               <div key={b.id}>
                 <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium">{b.category}</span>
+                  <span className="font-medium">{b.categoryLabel}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {formatCurrency(b.spent)} / {formatCurrency(b.planned)}
                   </span>
@@ -259,7 +290,7 @@ export default async function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm />
+          <TransactionForm categories={topLevelCategories} />
         </CardContent>
       </Card>
 
@@ -271,34 +302,43 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="flex flex-col divide-y divide-border">
-              {recentTransactions.map((tx) => (
-                <div key={tx.id} className="flex items-center gap-3 px-6 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={tx.type === "income" ? "income" : "expense"}>
-                        {tx.type}
-                      </Badge>
-                      <span className="truncate text-sm font-medium">{tx.category}</span>
+              {recentTransactions.map((tx) => {
+                // tx.category is the JOIN result (CategoryType | null) from the `with` clause.
+                const cat = tx.category
+                const categoryLabel = cat
+                  ? cat.parent
+                    ? `${cat.parent.icon ?? ""} ${cat.parent.name} › ${cat.icon ?? ""} ${cat.name}`.trim()
+                    : `${cat.icon ?? ""} ${cat.name}`.trim()
+                  : "—"
+                return (
+                  <div key={tx.id} className="flex items-center gap-3 px-6 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={tx.type === "income" ? "income" : "expense"}>
+                          {tx.type}
+                        </Badge>
+                        <span className="truncate text-sm font-medium">{categoryLabel}</span>
+                      </div>
+                      {tx.description && (
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {tx.description}
+                        </p>
+                      )}
                     </div>
-                    {tx.description && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {tx.description}
-                      </p>
-                    )}
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${
+                          tx.type === "income" ? "text-emerald-600" : "text-foreground"
+                        }`}
+                      >
+                        {tx.type === "income" ? "+" : "−"}
+                        {formatCurrency(tx.amount)}
+                      </span>
+                      <DeleteTransactionButton transactionId={tx.id} />
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span
-                      className={`text-sm font-medium tabular-nums ${
-                        tx.type === "income" ? "text-emerald-600" : "text-foreground"
-                      }`}
-                    >
-                      {tx.type === "income" ? "+" : "−"}
-                      {formatCurrency(tx.amount)}
-                    </span>
-                    <DeleteTransactionButton transactionId={tx.id} />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>

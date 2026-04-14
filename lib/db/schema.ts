@@ -5,7 +5,8 @@ import {
   timestamp,
   decimal,
   pgEnum,
-  uuid
+  uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
@@ -73,6 +74,31 @@ export const verification = pgTable("verification", {
 // ─── HavenFlow Application Tables ─────────────────────────────────────────────
 
 /**
+ * User-defined spending/income categories per household.
+ * Supports a two-level hierarchy: top-level categories and subcategories.
+ * parentId IS NULL  → top-level category (e.g. "Dining Out")
+ * parentId IS SET   → subcategory (e.g. "Office Lunch" under "Dining Out")
+ * Max depth enforced in code: a subcategory cannot have children.
+ */
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id")
+    .notNull()
+    .references(() => households.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  /** Null for top-level; points to a top-level category for subcategories. */
+  parentId: uuid("parent_id").references((): AnyPgColumn => categories.id, {
+    onDelete: "cascade",
+  }),
+  /** Optional hex color for UI swatches (e.g. "#f59e0b"). */
+  color: text("color"),
+  /** Optional emoji or lucide icon name for visual cues (e.g. "🍕" or "utensils"). */
+  icon: text("icon"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+/**
  * A single household shared by up to two users.
  * All application data is scoped to one household.
  */
@@ -102,6 +128,9 @@ export const householdMembers = pgTable("household_members", {
 /**
  * Income and expense transactions.
  * isHouseholdExpense distinguishes shared costs from personal spending.
+ * categoryId references the categories table (leaf level — subcategory if available).
+ * category (text) is kept for backward-compatibility with any data entered before
+ * categories were introduced; new transactions always populate categoryId.
  */
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -113,7 +142,10 @@ export const transactions = pgTable("transactions", {
     .references(() => user.id, { onDelete: "cascade" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   type: transactionTypeEnum("type").notNull(),
-  category: text("category").notNull(),
+  /** Legacy text category — kept for data entered before the categories table existed. */
+  category: text("category"),
+  /** FK to the categories table — used for all new transactions. */
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
   description: text("description"),
   isHouseholdExpense: boolean("is_household_expense").notNull().default(true),
   transactionDate: timestamp("transaction_date").notNull().defaultNow(),
@@ -123,6 +155,8 @@ export const transactions = pgTable("transactions", {
 /**
  * Monthly budget targets per category.
  * Actual spending is calculated from transactions.
+ * Budgets are linked to top-level categories for an easy rollup view.
+ * categoryId is preferred; the legacy category text is kept for backward compat.
  */
 export const budgets = pgTable("budgets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -131,7 +165,10 @@ export const budgets = pgTable("budgets", {
     .references(() => households.id, { onDelete: "cascade" }),
   /** Format: YYYY-MM (e.g. "2025-01") */
   month: text("month").notNull(),
-  category: text("category").notNull(),
+  /** Legacy text category — kept for data entered before the categories table existed. */
+  category: text("category"),
+  /** FK to the categories table — used for all new budgets. */
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
   plannedAmount: decimal("planned_amount", { precision: 12, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 })
@@ -210,6 +247,23 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
 
 // ─── Relations ────────────────────────────────────────────────────────────────
 
+export const categoryRelations = relations(categories, ({ one, many }) => ({
+  household: one(households, {
+    fields: [categories.householdId],
+    references: [households.id],
+  }),
+  /** The parent top-level category (null for top-level categories). */
+  parent: one(categories, {
+    fields: [categories.parentId],
+    references: [categories.id],
+    relationName: "parentChild",
+  }),
+  /** Subcategories that belong to this top-level category. */
+  subcategories: many(categories, { relationName: "parentChild" }),
+  transactions: many(transactions),
+  budgets: many(budgets),
+}))
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -230,6 +284,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const householdRelations = relations(households, ({ many }) => ({
   members: many(householdMembers),
+  categories: many(categories),
   transactions: many(transactions),
   budgets: many(budgets),
   items: many(items),
@@ -252,12 +307,20 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
     references: [households.id],
   }),
   user: one(user, { fields: [transactions.userId], references: [user.id] }),
+  category: one(categories, {
+    fields: [transactions.categoryId],
+    references: [categories.id],
+  }),
 }))
 
 export const budgetRelations = relations(budgets, ({ one }) => ({
   household: one(households, {
     fields: [budgets.householdId],
     references: [households.id],
+  }),
+  category: one(categories, {
+    fields: [budgets.categoryId],
+    references: [categories.id],
   }),
 }))
 
