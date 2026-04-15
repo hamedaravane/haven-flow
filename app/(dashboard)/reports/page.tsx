@@ -21,6 +21,9 @@ import { ReportsCharts } from "@/components/features/reports-charts"
 
 export const metadata: Metadata = { title: "Reports" }
 
+// Sentinel key for transactions with no category in the rollup map
+const UNCATEGORIZED_KEY = "__uncategorized__" as const
+
 export default async function ReportsPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) return null
@@ -113,10 +116,10 @@ export default async function ReportsPage() {
     const topLevel = cat?.parent ?? cat
     if (!topLevel) {
       // null / orphaned categoryId → bucket as "Uncategorized"
-      rollup["__uncategorized__"] = {
+      rollup[UNCATEGORIZED_KEY] = {
         name: "Uncategorized",
         icon: null,
-        amount: (rollup["__uncategorized__"]?.amount ?? 0) + parseFloat(row.total),
+        amount: (rollup[UNCATEGORIZED_KEY]?.amount ?? 0) + parseFloat(row.total),
       }
       continue
     }
