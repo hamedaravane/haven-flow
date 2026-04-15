@@ -8,26 +8,18 @@ import { db } from "@/lib/db"
 import { transactions, categories, householdMembers } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
-import { formatStoredMonth, type CalendarSystem } from "@/lib/date-utils"
+import {
+  formatStoredMonth,
+  getCurrentCalendarMonthBounds,
+  getCalendarMonths,
+  getCalendarMonthKey,
+  type CalendarSystem,
+} from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ReportsCharts } from "@/components/features/reports-charts"
 
 export const metadata: Metadata = { title: "Reports" }
-
-/** Build a YYYY-MM string for a given number of months ago (0 = current month). */
-function monthAgo(n: number): string {
-  const d = new Date()
-  d.setDate(1)
-  d.setMonth(d.getMonth() - n)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-}
-
-/** Return inclusive [start, end) Date bounds for a YYYY-MM string. */
-function monthBounds(month: string): { start: Date; end: Date } {
-  const [y, m] = month.split("-").map(Number)
-  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) }
-}
 
 export default async function ReportsPage() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -37,17 +29,22 @@ export default async function ReportsPage() {
   const defaultCurrency = household.defaultCurrency
   const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
 
-  // ── Build 6-month windows ─────────────────────────────────────────────────
-  const months = Array.from({ length: 6 }, (_, i) => monthAgo(5 - i)) // oldest → newest
-  const firstStart = monthBounds(months[0]).start
-  const lastEnd = monthBounds(months[months.length - 1]).end
+  // ── Build 6 calendar-aware month windows ──────────────────────────────────
+  // For Jalali: each window covers the true Gregorian span of the Jalali month
+  // (e.g., Farvardin = March 21–April 21), so transactions that fall within a
+  // Jalali month but cross a Gregorian month boundary are not missed.
+  const calMonths = getCalendarMonths(calendarSystem, 6) // oldest → newest
+  const firstStart = calMonths[0].start
+  const lastEnd = calMonths[calMonths.length - 1].end
 
-  // ── Aggregate income/expense per month ────────────────────────────────────
-  const rows = await db
+  // ── Aggregate income/expense per calendar month ────────────────────────────
+  // Fetch all rows in the 6-month range and group them by calendar month in JS.
+  // This handles Jalali months correctly (they don't align with Gregorian months).
+  const allTxRows = await db
     .select({
-      month: sql<string>`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`,
+      transactionDate: transactions.transactionDate,
       type: transactions.type,
-      total: sql<string>`COALESCE(SUM(${transactions.amount}), '0')`,
+      amount: transactions.amount,
     })
     .from(transactions)
     .where(
@@ -57,30 +54,33 @@ export default async function ReportsPage() {
         lt(transactions.transactionDate, lastEnd)
       )
     )
-    .groupBy(
-      sql`TO_CHAR(${transactions.transactionDate}, 'YYYY-MM')`,
-      transactions.type
-    )
 
-  const monthlyData = months.map((month) => {
-    const incomeRow = rows.find((r) => r.month === month && r.type === "income")
-    const expenseRow = rows.find((r) => r.month === month && r.type === "expense")
-    return {
-      month,
-      // Calendar-aware label for chart display
-      monthLabel: formatStoredMonth(month, calendarSystem),
-      income: parseFloat(incomeRow?.total ?? "0"),
-      expenses: parseFloat(expenseRow?.total ?? "0"),
+  // Build a per-month accumulator seeded with the 6 calendar months
+  const monthlyAcc: Record<string, { income: number; expenses: number }> = {}
+  for (const cm of calMonths) {
+    monthlyAcc[cm.month] = { income: 0, expenses: 0 }
+  }
+  for (const row of allTxRows) {
+    const key = getCalendarMonthKey(new Date(row.transactionDate), calendarSystem)
+    if (monthlyAcc[key]) {
+      const amount = parseFloat(row.amount)
+      if (row.type === "income") monthlyAcc[key].income += amount
+      else monthlyAcc[key].expenses += amount
     }
-  })
+  }
 
-  // ── Category breakdown for current month ──────────────────────────────────
-  // We join transactions with categories to get the category name.
-  // Subcategory spending rolls up to the parent top-level category.
-  const currentMonth = monthAgo(0)
-  const { start: cmStart, end: cmEnd } = monthBounds(currentMonth)
+  const monthlyData = calMonths.map((cm) => ({
+    month: cm.month,
+    monthLabel: formatStoredMonth(cm.month, calendarSystem),
+    income: monthlyAcc[cm.month]?.income ?? 0,
+    expenses: monthlyAcc[cm.month]?.expenses ?? 0,
+  }))
 
-  // Load all subcategories so we can resolve parentId → top-level name
+  // ── Category breakdown for current calendar month ──────────────────────────
+  const { start: cmStart, end: cmEnd, month: currentMonth } =
+    getCurrentCalendarMonthBounds(calendarSystem)
+
+  // Load all categories so we can roll subcategory spending up to top-level
   const allCategories = await db.query.categories.findMany({
     where: eq(categories.householdId, household.id),
     with: { parent: true },
@@ -104,12 +104,22 @@ export default async function ReportsPage() {
     .groupBy(transactions.categoryId)
     .orderBy(sql`SUM(${transactions.amount}) DESC`)
 
-  // Roll up subcategory spending to top-level categories
+  // Roll up subcategory spending to top-level categories.
+  // Transactions with no category are shown as "Uncategorized" so they are
+  // not silently excluded from the breakdown.
   const rollup: Record<string, { name: string; amount: number; icon: string | null }> = {}
   for (const row of rawCategoryRows) {
     const cat = row.categoryId ? categoryMap[row.categoryId] : undefined
     const topLevel = cat?.parent ?? cat
-    if (!topLevel) continue
+    if (!topLevel) {
+      // null / orphaned categoryId → bucket as "Uncategorized"
+      rollup["__uncategorized__"] = {
+        name: "Uncategorized",
+        icon: null,
+        amount: (rollup["__uncategorized__"]?.amount ?? 0) + parseFloat(row.total),
+      }
+      continue
+    }
     const key = topLevel.id
     rollup[key] = {
       name: topLevel.name,
@@ -125,7 +135,7 @@ export default async function ReportsPage() {
       amount: r.amount,
     }))
 
-  // ── Per-member spending for current month ─────────────────────────────────
+  // ── Per-member spending for current calendar month ─────────────────────────
   const members = await db.query.householdMembers.findMany({
     where: eq(householdMembers.householdId, household.id),
     with: { user: true },
@@ -148,7 +158,7 @@ export default async function ReportsPage() {
     )
     .groupBy(transactions.userId)
 
-  // Per-member top category (by spend) for the current month
+  // Per-member top category (by spend) for the current calendar month
   const perUserCategoryRows = await db
     .select({
       userId: transactions.userId,
@@ -167,13 +177,8 @@ export default async function ReportsPage() {
     .groupBy(transactions.userId, transactions.categoryId)
     .orderBy(sql`SUM(${transactions.amount}) DESC`)
 
-  /**
-   * For each member: resolve the top category name by rolling up subcategory
-   * spending to the parent top-level category label.
-   */
   function topCategoryForUser(userId: string): string | null {
     const userRows = perUserCategoryRows.filter((r) => r.userId === userId)
-    // Roll up to top-level
     const rollupMap: Record<string, { name: string; icon: string | null; amount: number }> = {}
     for (const r of userRows) {
       const cat = r.categoryId ? categoryMap[r.categoryId] : undefined

@@ -124,9 +124,16 @@ export default async function TransactionsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
-                          <Badge variant={tx.type === "income" ? "income" : "expense"}>
-                            {tx.type}
-                          </Badge>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Badge variant={tx.type === "income" ? "income" : "expense"}>
+                              {tx.type}
+                            </Badge>
+                            {tx.source === "csv" && (
+                              <Badge variant="secondary" className="text-xs">
+                                Imported
+                              </Badge>
+                            )}
+                          </div>
                           <span className="text-xs text-muted-foreground">{categoryLabel}</span>
                         </div>
                       </TableCell>

@@ -1,5 +1,5 @@
 import { headers } from "next/headers"
-import { and, count, eq, desc } from "drizzle-orm"
+import { and, count, eq, desc, sql } from "drizzle-orm"
 import type { Metadata } from "next"
 
 import { auth } from "@/lib/auth"
@@ -7,7 +7,7 @@ import { db } from "@/lib/db"
 import { wallets, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { WALLET_TYPE_LABELS, type WalletType } from "@/lib/wallet-constants"
-import { resolveDefaultCurrency } from "@/lib/constants"
+import { formatCurrency, resolveDefaultCurrency } from "@/lib/constants"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { WalletForm } from "@/components/features/wallet-form"
@@ -45,6 +45,24 @@ export default async function WalletsPage() {
   const txCounts: Record<string, number> = {}
   for (const row of txCountRows) {
     if (row.walletId) txCounts[row.walletId] = row.txCount
+  }
+
+  // Calculate running balance per wallet: sum(income) - sum(expenses)
+  const balanceRows = await db
+    .select({
+      walletId: transactions.walletId,
+      income: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amount} ELSE 0 END), '0')`,
+      expenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amount} ELSE 0 END), '0')`,
+    })
+    .from(transactions)
+    .where(eq(transactions.householdId, household.id))
+    .groupBy(transactions.walletId)
+
+  const walletBalances: Record<string, number> = {}
+  for (const row of balanceRows) {
+    if (row.walletId) {
+      walletBalances[row.walletId] = parseFloat(row.income) - parseFloat(row.expenses)
+    }
   }
 
   // Group wallets by type for display
@@ -126,6 +144,19 @@ export default async function WalletsPage() {
                           </span>
                         )}
                       </div>
+                      {/* Balance: only shown once there are transactions */}
+                      {txCounts[w.id] > 0 && (
+                        <p
+                          className={`mt-1 text-sm font-semibold tabular-nums ${
+                            (walletBalances[w.id] ?? 0) >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {(walletBalances[w.id] ?? 0) >= 0 ? "+" : ""}
+                          {formatCurrency(walletBalances[w.id] ?? 0, w.currency)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Actions */}

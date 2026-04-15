@@ -8,7 +8,7 @@ import { db } from "@/lib/db"
 import { budgets, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
-import { formatStoredMonth, getCurrentMonth, monthBounds as calAwareMonthBounds, type CalendarSystem } from "@/lib/date-utils"
+import { formatStoredMonth, getCurrentCalendarMonthBounds, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -23,8 +23,9 @@ export default async function BudgetsPage() {
 
   const household = await getOrCreateHousehold(session.user.id)
   const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
-  const month = getCurrentMonth(calendarSystem)
-  const { start, end } = calAwareMonthBounds(month)
+  // Use true calendar-aware month bounds so Jalali months that span Gregorian
+  // month boundaries are fully covered.
+  const { start, end, month } = getCurrentCalendarMonthBounds(calendarSystem)
 
   // Load top-level categories for the budget form
   const topLevelCategories = await db.query.categories.findMany({

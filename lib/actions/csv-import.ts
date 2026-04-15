@@ -158,6 +158,7 @@ export async function importTransactions(input: ImportInput): Promise<ImportResu
         description: row.description || null,
         isHouseholdExpense: true,
         transactionDate: new Date(row.transactionDate),
+        source: "csv" as const,
       }))
     )
     inserted += batch.length
@@ -166,6 +167,8 @@ export async function importTransactions(input: ImportInput): Promise<ImportResu
   revalidatePath("/dashboard")
   revalidatePath("/transactions")
   revalidatePath("/budgets")
+  revalidatePath("/reports")
+  revalidatePath("/wallets")
 
   return { inserted, skipped }
 }

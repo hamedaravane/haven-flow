@@ -185,6 +185,127 @@ export function monthBounds(month: string): { start: Date; end: Date } {
 }
 
 /**
+ * Return the stored YYYY-MM key for the calendar month that contains `date`.
+ *
+ * - Gregorian: returns the Gregorian YYYY-MM of the date.
+ * - Jalali: returns the Gregorian YYYY-MM of the *first day* of the Jalali
+ *   month that contains the date (matching the format written to budgets.month
+ *   by getCurrentMonth).
+ *
+ * This is the inverse of getCurrentMonth — it answers "which stored month
+ * does this transaction date belong to?".
+ */
+export function getCalendarMonthKey(date: Date, calendar: CalendarSystem): string {
+  if (calendar === "gregorian") {
+    const y = date.getFullYear()
+    const m = date.getMonth() + 1
+    return `${y}-${String(m).padStart(2, "0")}`
+  }
+  // Jalali: find the Jalali month that contains `date`, then return the
+  // Gregorian month in which that Jalali month's first day falls.
+  const { jy, jm } = toJalali(date)
+  const { gy, gm } = jalaali.toGregorian(jy, jm, 1)
+  return `${gy}-${String(gm).padStart(2, "0")}`
+}
+
+/**
+ * Return the true Gregorian [start, end) bounds for the currently-displayed
+ * calendar month, plus the stored `month` key used for budget matching.
+ *
+ * For Gregorian: aligns with the standard Gregorian month (1st – 1st of next).
+ * For Jalali: returns the exact Gregorian dates for the start and end of the
+ * current Jalali month (e.g., March 21 – April 21 for Farvardin 1405), so
+ * transactions that fall within the Jalali month but cross a Gregorian month
+ * boundary are correctly included.
+ */
+export function getCurrentCalendarMonthBounds(calendar: CalendarSystem): {
+  start: Date
+  end: Date
+  month: string
+} {
+  const now = new Date()
+  if (calendar === "jalali") {
+    const { jy, jm } = toJalali(now)
+    // First day of the current Jalali month → Gregorian
+    const sg = jalaali.toGregorian(jy, jm, 1)
+    const start = new Date(sg.gy, sg.gm - 1, sg.gd)
+    // First day of the *next* Jalali month → Gregorian (exclusive upper bound)
+    const nextJm = jm === 12 ? 1 : jm + 1
+    const nextJy = jm === 12 ? jy + 1 : jy
+    const eg = jalaali.toGregorian(nextJy, nextJm, 1)
+    const end = new Date(eg.gy, eg.gm - 1, eg.gd)
+    // Stored month key: Gregorian month where the Jalali month starts
+    const month = `${sg.gy}-${String(sg.gm).padStart(2, "0")}`
+    return { start, end, month }
+  }
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  const month = `${y}-${String(m).padStart(2, "0")}`
+  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 1), month }
+}
+
+/**
+ * Return an array of calendar-month windows for the past `count` months,
+ * ordered oldest → newest (index 0 = oldest, index count-1 = current month).
+ *
+ * For Gregorian: each window aligns with the standard Gregorian month.
+ * For Jalali: each window uses the true Gregorian bounds of the Jalali month
+ * (e.g., Farvardin = March 21 – April 21), so chart bars cover exactly one
+ * Jalali month of data.
+ *
+ * Each entry contains:
+ *   month  – stored YYYY-MM key (Gregorian month where the Jalali month starts,
+ *             matching the format used in getCurrentMonth / budgets.month)
+ *   start  – inclusive lower bound for DB queries (Gregorian Date)
+ *   end    – exclusive upper bound for DB queries (Gregorian Date)
+ */
+export function getCalendarMonths(
+  calendar: CalendarSystem,
+  count: number
+): Array<{ month: string; start: Date; end: Date }> {
+  const now = new Date()
+
+  if (calendar === "gregorian") {
+    return Array.from({ length: count }, (_, i) => {
+      const offset = count - 1 - i // oldest first
+      const y = now.getFullYear()
+      const rawM = now.getMonth() - offset // may be negative
+      // Use Date math to handle year wrapping
+      const d = new Date(y, rawM, 1)
+      const dy = d.getFullYear()
+      const dm = d.getMonth() + 1
+      const month = `${dy}-${String(dm).padStart(2, "0")}`
+      return { month, start: new Date(dy, dm - 1, 1), end: new Date(dy, dm, 1) }
+    })
+  }
+
+  // Jalali: generate count Jalali months going back from today
+  const { jy: curJy, jm: curJm } = toJalali(now)
+  return Array.from({ length: count }, (_, i) => {
+    const offset = count - 1 - i // oldest first
+    // Compute the Jalali month that is `offset` months before the current one
+    let jm = curJm - offset
+    let jy = curJy
+    while (jm <= 0) {
+      jm += 12
+      jy--
+    }
+    // Actual Gregorian start/end for this Jalali month
+    const sg = jalaali.toGregorian(jy, jm, 1)
+    const nextJm = jm === 12 ? 1 : jm + 1
+    const nextJy = jm === 12 ? jy + 1 : jy
+    const eg = jalaali.toGregorian(nextJy, nextJm, 1)
+    // Stored month key
+    const month = `${sg.gy}-${String(sg.gm).padStart(2, "0")}`
+    return {
+      month,
+      start: new Date(sg.gy, sg.gm - 1, sg.gd),
+      end: new Date(eg.gy, eg.gm - 1, eg.gd),
+    }
+  })
+}
+
+/**
  * Convert a Jalali month label "YYYY-MM" (e.g. "1404-02") to the
  * Gregorian "YYYY-MM" month string used in the DB.
  */
