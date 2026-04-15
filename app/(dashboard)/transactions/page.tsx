@@ -1,6 +1,7 @@
 import { headers } from "next/headers"
 import { and, desc, eq } from "drizzle-orm"
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
@@ -10,6 +11,7 @@ import { formatCurrency } from "@/lib/constants"
 import { formatDate, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TransactionForm } from "@/components/features/transaction-form"
 import { DeleteTransactionButton } from "@/components/features/delete-buttons"
@@ -53,11 +55,16 @@ export default async function TransactionsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-medium">Transactions</h1>
-        <p className="text-sm text-muted-foreground">
-          {allTransactions.length} transaction{allTransactions.length !== 1 ? "s" : ""} recorded
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-medium">Transactions</h1>
+          <p className="text-sm text-muted-foreground">
+            {allTransactions.length} transaction{allTransactions.length !== 1 ? "s" : ""} recorded
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/import">⬆ Import CSV</Link>
+        </Button>
       </div>
 
       {/* Add transaction form */}
