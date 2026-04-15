@@ -1,5 +1,5 @@
 import { headers } from "next/headers"
-import { and, eq, desc } from "drizzle-orm"
+import { and, count, eq, desc } from "drizzle-orm"
 import type { Metadata } from "next"
 
 import { auth } from "@/lib/auth"
@@ -31,14 +31,20 @@ export default async function WalletsPage() {
     orderBy: [desc(wallets.createdAt)],
   })
 
-  // Count transactions per wallet for the info badge
+  // Fetch transaction counts per wallet in a single grouped query (avoids N+1)
+  const txCountRows = await db
+    .select({ walletId: transactions.walletId, txCount: count() })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.householdId, household.id),
+      )
+    )
+    .groupBy(transactions.walletId)
+
   const txCounts: Record<string, number> = {}
-  for (const w of userWallets) {
-    const rows = await db
-      .select({ count: transactions.id })
-      .from(transactions)
-      .where(and(eq(transactions.walletId, w.id), eq(transactions.householdId, household.id)))
-    txCounts[w.id] = rows.length
+  for (const row of txCountRows) {
+    if (row.walletId) txCounts[row.walletId] = row.txCount
   }
 
   // Group wallets by type for display
