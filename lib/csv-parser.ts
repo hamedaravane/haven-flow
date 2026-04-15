@@ -117,8 +117,11 @@ function buildColumnMap(headerRow: string[]): Partial<Record<CsvColumnKey, numbe
   headerRow.forEach((cell, idx) => {
     const normalised = normaliseCell(cell)
     for (const [key, variants] of Object.entries(KNOWN_COLUMN_HEADERS) as [CsvColumnKey, readonly string[]][]) {
+      // Only map the first occurrence — skip if already mapped
+      if (map[key] !== undefined) continue
       if (variants.map((v) => v.toLowerCase()).includes(normalised)) {
         map[key] = idx
+        break
       }
     }
   })
@@ -183,6 +186,16 @@ function buildDescription(
     }
   }
   return parts.join(" — ")
+}
+
+// ─── Dedup key helper ─────────────────────────────────────────────────────────
+
+/**
+ * Build a stable deduplication key from a date string and amount.
+ * Format: "YYYY-MM-DD|amount.toFixed(2)"
+ */
+function buildDedupKey(date: string, amount: number): string {
+  return `${date}|${amount.toFixed(2)}`
 }
 
 // ─── Main parser ─────────────────────────────────────────────────────────────

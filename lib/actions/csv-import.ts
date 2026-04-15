@@ -37,6 +37,16 @@ async function requireSession() {
   return session
 }
 
+/**
+ * Build a stable deduplication key from a Date or ISO date string and an amount string.
+ * Format: "YYYY-MM-DD|amount.toFixed(2)"
+ */
+function buildDedupKey(date: Date | string, amount: number | string): string {
+  const isoDate = typeof date === "string" ? date : new Date(date).toISOString().split("T")[0]
+  const numAmount = typeof amount === "string" ? parseFloat(amount) : amount
+  return `${isoDate}|${numAmount.toFixed(2)}`
+}
+
 // ─── Action ───────────────────────────────────────────────────────────────────
 
 export interface ImportResult {
@@ -109,15 +119,12 @@ export async function importTransactions(input: ImportInput): Promise<ImportResu
 
     // "YYYY-MM-DD|amount.toFixed(2)" key for fast lookup
     const existingKeys = new Set(
-      existingTxs.map((tx) => {
-        const d = new Date(tx.transactionDate).toISOString().split("T")[0]
-        return `${d}|${parseFloat(tx.amount).toFixed(2)}`
-      })
+      existingTxs.map((tx) => buildDedupKey(tx.transactionDate, tx.amount))
     )
 
     const filtered: typeof rows = []
     for (const row of rows) {
-      const key = `${row.transactionDate}|${row.amount.toFixed(2)}`
+      const key = buildDedupKey(row.transactionDate, row.amount)
       if (existingKeys.has(key)) {
         skipped++
       } else {
