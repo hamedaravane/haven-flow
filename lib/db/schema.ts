@@ -18,6 +18,16 @@ export const inventoryLocationEnum = pgEnum("inventory_location", ["fridge", "pa
 
 export const householdRoleEnum = pgEnum("household_role", ["owner", "member"])
 
+/**
+ * Wallet / account types supported by HavenFlow.
+ * bank    — traditional bank account (e.g. Mellat, Tejarat)
+ * card    — debit/credit card linked to a bank account
+ * crypto  — cryptocurrency wallet (Binance, Trust Wallet, etc.)
+ * cash    — physical cash on hand
+ * other   — anything that doesn't fit the above
+ */
+export const walletTypeEnum = pgEnum("wallet_type", ["bank", "card", "crypto", "cash", "other"])
+
 // ─── Better Auth Tables ────────────────────────────────────────────────────────
 // These exact column names are required by the Better Auth Drizzle adapter.
 
@@ -135,11 +145,35 @@ export const householdMembers = pgTable("household_members", {
 })
 
 /**
+ * Financial accounts / wallets owned by individual users.
+ * Each user manages their own set of accounts; all are scoped to the household.
+ * type   — bank | card | crypto | cash | other
+ * currency — e.g. 'IRR', 'USD', 'USDT'
+ */
+export const wallets = pgTable("wallets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  householdId: uuid("household_id")
+    .notNull()
+    .references(() => households.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: walletTypeEnum("type").notNull().default("bank"),
+  /** ISO currency code or crypto ticker (e.g. 'IRR', 'USD', 'USDT'). */
+  currency: text("currency").notNull().default("IRR"),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+})
+
+/**
  * Income and expense transactions.
  * isHouseholdExpense distinguishes shared costs from personal spending.
  * categoryId references the categories table (leaf level — subcategory if available).
  * category (text) is kept for backward-compatibility with any data entered before
  * categories were introduced; new transactions always populate categoryId.
+ * walletId references the wallets table — the account used for this transaction.
  */
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -149,6 +183,8 @@ export const transactions = pgTable("transactions", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  /** The wallet/account this transaction was made from. Nullable for legacy records. */
+  walletId: uuid("wallet_id").references(() => wallets.id, { onDelete: "set null" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   /** Currency code for this transaction (e.g. 'IRR', 'USD', 'USDT'). */
   currency: text("currency").notNull().default("IRR"),
@@ -283,6 +319,7 @@ export const userRelations = relations(user, ({ many }) => ({
   inventoryItems: many(inventory),
   shoppingListItems: many(shoppingListItems),
   pushSubscriptions: many(pushSubscriptions),
+  wallets: many(wallets),
 }))
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -302,6 +339,7 @@ export const householdRelations = relations(households, ({ many }) => ({
   inventory: many(inventory),
   shoppingListItems: many(shoppingListItems),
   pushSubscriptions: many(pushSubscriptions),
+  wallets: many(wallets),
 }))
 
 export const householdMemberRelations = relations(householdMembers, ({ one }) => ({
@@ -321,6 +359,10 @@ export const transactionRelations = relations(transactions, ({ one }) => ({
   category: one(categories, {
     fields: [transactions.categoryId],
     references: [categories.id],
+  }),
+  wallet: one(wallets, {
+    fields: [transactions.walletId],
+    references: [wallets.id],
   }),
 }))
 
@@ -361,4 +403,13 @@ export const pushSubscriptionRelations = relations(pushSubscriptions, ({ one }) 
     fields: [pushSubscriptions.householdId],
     references: [households.id],
   }),
+}))
+
+export const walletRelations = relations(wallets, ({ one, many }) => ({
+  household: one(households, {
+    fields: [wallets.householdId],
+    references: [households.id],
+  }),
+  user: one(user, { fields: [wallets.userId], references: [user.id] }),
+  transactions: many(transactions),
 }))

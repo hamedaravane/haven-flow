@@ -11,6 +11,8 @@ import {
   ReceiptText,
   Tags,
   Settings,
+  Wallet,
+  FileUp,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -18,6 +20,8 @@ import { cn } from "@/lib/utils"
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
+  { href: "/wallets", label: "Wallets", icon: Wallet },
+  { href: "/import", label: "Import", icon: FileUp },
   { href: "/budgets", label: "Budgets", icon: PiggyBank },
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/shopping-list", label: "Shopping", icon: ShoppingCart },

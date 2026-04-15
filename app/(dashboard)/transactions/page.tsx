@@ -1,15 +1,17 @@
 import { headers } from "next/headers"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { transactions } from "@/lib/db/schema"
+import { transactions, wallets } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
 import { formatDate, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TransactionForm } from "@/components/features/transaction-form"
 import { DeleteTransactionButton } from "@/components/features/delete-buttons"
@@ -31,23 +33,38 @@ export default async function TransactionsPage() {
     orderBy: (c, { asc }) => [asc(c.name)],
   })
 
+  // Load wallets for the current user (used in the transaction form dropdown)
+  const userWallets = await db.query.wallets.findMany({
+    where: and(
+      eq(wallets.householdId, household.id),
+      eq(wallets.userId, session.user.id)
+    ),
+    orderBy: (w, { asc }) => [asc(w.createdAt)],
+  })
+
   const allTransactions = await db.query.transactions.findMany({
     where: eq(transactions.householdId, household.id),
     with: {
       user: true,
       // Resolve the category (and its parent) for display
       category: { with: { parent: true } },
+      wallet: true,
     },
     orderBy: [desc(transactions.transactionDate)],
   })
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-medium">Transactions</h1>
-        <p className="text-sm text-muted-foreground">
-          {allTransactions.length} transaction{allTransactions.length !== 1 ? "s" : ""} recorded
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-medium">Transactions</h1>
+          <p className="text-sm text-muted-foreground">
+            {allTransactions.length} transaction{allTransactions.length !== 1 ? "s" : ""} recorded
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/import">⬆ Import CSV</Link>
+        </Button>
       </div>
 
       {/* Add transaction form */}
@@ -56,7 +73,7 @@ export default async function TransactionsPage() {
           <CardTitle>Add transaction</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} calendarSystem={calendarSystem} />
+          <TransactionForm categories={topLevelCategories} wallets={userWallets} defaultCurrency={household.defaultCurrency} calendarSystem={calendarSystem} />
         </CardContent>
       </Card>
 
@@ -82,6 +99,7 @@ export default async function TransactionsPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="w-8" />
@@ -111,6 +129,9 @@ export default async function TransactionsPage() {
                           </Badge>
                           <span className="text-xs text-muted-foreground">{categoryLabel}</span>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {tx.wallet ? tx.wallet.name : <span className="text-muted-foreground/50">—</span>}
                       </TableCell>
                       <TableCell className="max-w-[160px] truncate text-sm">
                         {tx.description ?? (

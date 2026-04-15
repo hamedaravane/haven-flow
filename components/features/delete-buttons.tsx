@@ -8,6 +8,7 @@ import { deleteBudget } from "@/lib/actions/budgets"
 import { deleteInventoryItem } from "@/lib/actions/inventory"
 import { deleteShoppingItem, clearCheckedItems } from "@/lib/actions/shopping-list"
 import { deleteCategory } from "@/lib/actions/categories"
+import { deleteWallet } from "@/lib/actions/wallets"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 
@@ -161,6 +162,37 @@ export function DeleteCategoryButton({ categoryId, categoryName }: DeleteCategor
         })
       }}
       aria-label={`Delete category ${categoryName}`}
+    >
+      <Trash2 className="size-3.5 text-muted-foreground" />
+    </Button>
+  )
+}
+
+interface DeleteWalletButtonProps {
+  walletId: string
+  walletName: string
+}
+
+export function DeleteWalletButton({ walletId, walletName }: DeleteWalletButtonProps) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={isPending}
+      onClick={() => {
+        if (!confirm(`Delete "${walletName}"? Existing transactions will keep a reference but the account will no longer be available.`)) return
+        startTransition(async () => {
+          const result = await deleteWallet(walletId)
+          if (result.error) {
+            toast(result.error, { variant: "error" })
+          } else {
+            toast(`"${walletName}" deleted`, { variant: "success" })
+          }
+        })
+      }}
+      aria-label={`Delete wallet ${walletName}`}
     >
       <Trash2 className="size-3.5 text-muted-foreground" />
     </Button>
