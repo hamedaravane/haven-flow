@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-svh w-full">
+      <div className="flex h-svh w-full">
         {/* Desktop sidebar — hidden on mobile, handles nav for md+ */}
         <AppSidebar user={user} />
 
@@ -44,7 +44,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </header>
 
           {/* Page content */}
-          <main className="flex-1 px-4 py-6">{children}</main>
+          <div className="max-h-svh overflow-y-scroll">
+            <main className="w-full max-w-4xl px-4 py-6 mx-auto">{children}</main>
+          </div>
 
           {/* Mobile bottom navigation */}
           <NavMobile />
