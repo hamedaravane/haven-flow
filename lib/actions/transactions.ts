@@ -26,6 +26,8 @@ const transactionSchema = z.object({
   isHouseholdExpense: z.coerce.boolean().default(true),
   /** ISO date string from <input type="date"> e.g. "2025-01-15" */
   transactionDate: z.string().min(1, "Please pick a date"),
+  /** Optional wallet/account UUID — new transactions should always include this. */
+  walletId: z.string().uuid().optional().nullable(),
 })
 
 export type TransactionInput = z.infer<typeof transactionSchema>
@@ -49,7 +51,7 @@ export async function createTransaction(input: TransactionInput) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  const { amount, type, categoryId, currency, description, isHouseholdExpense, transactionDate } =
+  const { amount, type, categoryId, currency, description, isHouseholdExpense, transactionDate, walletId } =
     parsed.data
 
   await db.insert(transactions).values({
@@ -62,6 +64,7 @@ export async function createTransaction(input: TransactionInput) {
     description: description || null,
     isHouseholdExpense,
     transactionDate: new Date(transactionDate),
+    walletId: walletId ?? null,
   })
 
   revalidatePath("/dashboard")
@@ -117,7 +120,7 @@ export async function updateTransaction(transactionId: string, input: Transactio
     return { error: "Transaction not found" }
   }
 
-  const { amount, type, categoryId, currency, description, isHouseholdExpense, transactionDate } =
+  const { amount, type, categoryId, currency, description, isHouseholdExpense, transactionDate, walletId } =
     parsed.data
 
   await db
@@ -130,6 +133,7 @@ export async function updateTransaction(transactionId: string, input: Transactio
       description: description || null,
       isHouseholdExpense,
       transactionDate: new Date(transactionDate),
+      walletId: walletId ?? null,
     })
     .where(eq(transactions.id, transactionId))
 

@@ -8,6 +8,7 @@ import { z } from "zod"
 import { createTransaction } from "@/lib/actions/transactions"
 import { cn } from "@/lib/utils"
 import { CURRENCIES, CURRENCY_LABELS, resolveDefaultCurrency, type Currency } from "@/lib/constants"
+import { WALLET_TYPE_LABELS, type WalletType } from "@/lib/wallet-constants"
 import { formatDateForInput, parseDate, type CalendarSystem } from "@/lib/date-utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -45,6 +46,8 @@ const schema = z.object({
   description: z.string().optional(),
   isHouseholdExpense: z.coerce.boolean(),
   transactionDate: z.string().min(1, "Please pick a date"),
+  /** Wallet/account UUID. Optional for backward-compat; recommended for new transactions. */
+  walletId: z.string().uuid().optional().nullable(),
 })
 
 type FormValues = z.output<typeof schema>
@@ -65,9 +68,18 @@ interface TopLevelCategory {
   subcategories: Subcategory[]
 }
 
+interface UserWallet {
+  id: string
+  name: string
+  type: WalletType
+  currency: string
+}
+
 interface TransactionFormProps {
   /** Top-level categories (with their subcategories) from the DB */
   categories: TopLevelCategory[]
+  /** Wallets belonging to the current user */
+  wallets?: UserWallet[]
   /** Default currency from household settings */
   defaultCurrency?: string
   /** Calendar system preference for the household */
@@ -87,7 +99,7 @@ interface TransactionFormProps {
  *    The transaction is saved against the chosen subcategory's ID.
  * 3. If no subcategories exist, the top-level category ID is used directly.
  */
-export function TransactionForm({ categories, defaultCurrency = "IRR", calendarSystem = "gregorian", onSuccess, defaultDate }: TransactionFormProps) {
+export function TransactionForm({ categories, wallets = [], defaultCurrency = "IRR", calendarSystem = "gregorian", onSuccess, defaultDate }: TransactionFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -112,6 +124,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", calendarS
       description: "",
       isHouseholdExpense: true,
       transactionDate: todayDisplay,
+      walletId: wallets[0]?.id ?? null,
     },
   })
 
@@ -139,6 +152,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", calendarS
         ...values,
         transactionDate: isoDate,
         description: values.description || undefined,
+        walletId: values.walletId ?? null,
       })
       if (result.error) {
         setServerError(result.error)
@@ -151,6 +165,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", calendarS
           description: "",
           isHouseholdExpense: true,
           transactionDate: todayDisplay,
+          walletId: wallets[0]?.id ?? null,
         })
         setSelectedParentId(null)
         toast("Transaction saved", { variant: "success" })
@@ -267,6 +282,45 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", calendarS
                       {CURRENCY_LABELS[c]}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Wallet / Account selector */}
+        <FormField
+          control={form.control}
+          name="walletId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account / Wallet</FormLabel>
+              <Select
+                onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}
+                value={field.value ?? "__none__"}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-muted-foreground">No account selected</span>
+                  </SelectItem>
+                  {wallets.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      No wallets yet — add some in the Wallets page.
+                    </div>
+                  ) : (
+                    wallets.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {WALLET_TYPE_LABELS[w.type].split(" ")[0]} {w.name}
+                        <span className="ml-1.5 text-xs text-muted-foreground">{w.currency}</span>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
