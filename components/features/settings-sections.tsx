@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { LogOut, User, Globe, Palette, Home, UserPlus, Crown, UserMinus } from "lucide-react"
+import { LogOut, User, Globe, Palette, Home, UserPlus, Crown, UserMinus, CalendarDays } from "lucide-react"
 
 import {
   updateUserName,
@@ -14,8 +14,10 @@ import {
   updateHouseholdName,
   inviteMember,
   removeMember,
+  updateCalendarSystem,
 } from "@/lib/actions/settings"
 import { CURRENCIES, CURRENCY_LABELS, type Currency } from "@/lib/constants"
+import type { CalendarSystem } from "@/lib/date-utils"
 import { signOut } from "@/lib/auth-client"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -515,6 +517,88 @@ export function HouseholdSection({
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── Calendar & Locale section ────────────────────────────────────────────────
+
+const CALENDAR_OPTIONS: { value: CalendarSystem; label: string; description: string }[] = [
+  {
+    value: "jalali",
+    label: "Jalali (Solar Hijri / Shamsi)",
+    description: "Persian calendar — default for Iranian households",
+  },
+  {
+    value: "gregorian",
+    label: "Gregorian",
+    description: "International standard calendar (ISO 8601)",
+  },
+]
+
+interface CalendarSectionProps {
+  calendarSystem: CalendarSystem
+}
+
+export function CalendarSection({ calendarSystem }: CalendarSectionProps) {
+  const [isPending, startTransition] = useTransition()
+  const [selected, setSelected] = useState<CalendarSystem>(calendarSystem)
+
+  function handleSave() {
+    startTransition(async () => {
+      const result = await updateCalendarSystem({ calendarSystem: selected })
+      if (result.error) {
+        toast(result.error, { variant: "error" })
+      } else {
+        toast("Calendar preference saved — page will reflect new dates", { variant: "success" })
+      }
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CalendarDays className="size-4" />
+          Calendar &amp; Locale
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          Choose how dates are displayed and entered across the app. All dates are stored
+          internally as Gregorian ISO — this only affects display and input format.
+          The setting applies to the whole household.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-1 flex-col gap-1.5">
+            <label className="text-sm font-medium" htmlFor="calendar-select">
+              Calendar system
+            </label>
+            <Select value={selected} onValueChange={(v) => setSelected(v as CalendarSystem)}>
+              <SelectTrigger id="calendar-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CALENDAR_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="flex flex-col">
+                      <span>{opt.label}</span>
+                      <span className="text-xs text-muted-foreground">{opt.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            onClick={handleSave}
+            disabled={isPending || selected === calendarSystem}
+            className="sm:w-auto"
+          >
+            {isPending ? "Saving…" : "Save calendar"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

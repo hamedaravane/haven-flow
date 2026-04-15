@@ -8,6 +8,7 @@ import { db } from "@/lib/db"
 import { transactions, categories, householdMembers } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
+import { formatStoredMonth, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ReportsCharts } from "@/components/features/reports-charts"
@@ -34,6 +35,7 @@ export default async function ReportsPage() {
 
   const household = await getOrCreateHousehold(session.user.id)
   const defaultCurrency = household.defaultCurrency
+  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
 
   // ── Build 6-month windows ─────────────────────────────────────────────────
   const months = Array.from({ length: 6 }, (_, i) => monthAgo(5 - i)) // oldest → newest
@@ -65,6 +67,8 @@ export default async function ReportsPage() {
     const expenseRow = rows.find((r) => r.month === month && r.type === "expense")
     return {
       month,
+      // Calendar-aware label for chart display
+      monthLabel: formatStoredMonth(month, calendarSystem),
       income: parseFloat(incomeRow?.total ?? "0"),
       expenses: parseFloat(expenseRow?.total ?? "0"),
     }
@@ -255,10 +259,7 @@ export default async function ReportsPage() {
             <Users className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Spending by Member —{" "}
-              {new Date(currentMonth + "-01").toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
+              {formatStoredMonth(currentMonth, calendarSystem)}
             </h2>
           </div>
 
@@ -327,7 +328,7 @@ export default async function ReportsPage() {
       )}
 
       {/* ── Charts (client component) ──────────────────────────────────────── */}
-      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} />
+      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} calendarSystem={calendarSystem} />
     </div>
   )
 }

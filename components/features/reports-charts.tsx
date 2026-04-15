@@ -31,6 +31,7 @@ const CHART_COLORS = [
 
 interface MonthlyPoint {
   month: string
+  monthLabel: string
   income: number
   expenses: number
 }
@@ -44,12 +45,7 @@ interface ReportsChartsProps {
   monthlyData: MonthlyPoint[]
   categoryData: CategoryPoint[]
   defaultCurrency?: string
-}
-
-/** Format YYYY-MM as a short month label e.g. "Jan" */
-function shortMonth(ym: string): string {
-  const [y, m] = ym.split("-").map(Number)
-  return new Date(y, m - 1, 1).toLocaleString("en-US", { month: "short" })
+  calendarSystem?: string
 }
 
 /** Custom tooltip for the bar chart */
@@ -97,9 +93,11 @@ function PieTooltip({
 }
 
 export function ReportsCharts({ monthlyData, categoryData, defaultCurrency = "IRR" }: ReportsChartsProps) {
+  // Use the pre-computed monthLabel (calendar-aware) from the server for chart X-axis
   const chartData = monthlyData.map((d) => ({
     ...d,
-    month: shortMonth(d.month),
+    // Use a short version of the monthLabel for the chart axis
+    month: d.monthLabel,
   }))
 
   return (
