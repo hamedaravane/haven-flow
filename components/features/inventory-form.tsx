@@ -7,6 +7,7 @@ import { z } from "zod"
 
 import { createInventoryItem, updateInventoryItem } from "@/lib/actions/inventory"
 import { INVENTORY_LOCATIONS, INVENTORY_LOCATION_LABELS, INVENTORY_UNITS } from "@/lib/constants"
+import { formatDateForInput, parseDate, type CalendarSystem } from "@/lib/date-utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,15 +43,18 @@ interface InventoryFormProps {
   /** If provided, the form will update the existing item instead of creating */
   itemId?: string
   defaultValues?: Partial<FormValues>
+  /** Calendar system preference for the household */
+  calendarSystem?: CalendarSystem
   onSuccess?: () => void
 }
 
 /**
  * Client form for adding or editing an inventory item.
  */
-export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFormProps) {
+export function InventoryForm({ itemId, defaultValues, calendarSystem = "gregorian", onSuccess }: InventoryFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const isJalali = calendarSystem === "jalali"
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -58,7 +62,10 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
       name: "",
       quantity: undefined,
       unit: "",
-      expiresAt: "",
+      // When editing, convert the stored ISO date to display format
+      expiresAt: defaultValues?.expiresAt
+        ? formatDateForInput(defaultValues.expiresAt, calendarSystem)
+        : "",
       location: "pantry",
       ...defaultValues,
     },
@@ -67,11 +74,16 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
   function onSubmit(values: FormValues) {
     setServerError(null)
     startTransition(async () => {
+      // Convert the expiry date to a Gregorian ISO string if in Jalali mode
+      const isoExpiresAt = values.expiresAt
+        ? (parseDate(values.expiresAt, calendarSystem) ?? values.expiresAt)
+        : null
+
       const input = {
         name: values.name,
         quantity: values.quantity,
         unit: values.unit || null,
-        expiresAt: values.expiresAt || null,
+        expiresAt: isoExpiresAt,
         location: values.location,
       }
 
@@ -194,8 +206,20 @@ export function InventoryForm({ itemId, defaultValues, onSuccess }: InventoryFor
               <FormItem>
                 <FormLabel>Expires (optional)</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  {isJalali ? (
+                    <Input
+                      type="text"
+                      placeholder="۱۴۰۵/۰۲/۱۵"
+                      dir="ltr"
+                      {...field}
+                    />
+                  ) : (
+                    <Input type="date" {...field} />
+                  )}
                 </FormControl>
+                {isJalali && (
+                  <p className="text-xs text-muted-foreground">YYYY/MM/DD (Jalali)</p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

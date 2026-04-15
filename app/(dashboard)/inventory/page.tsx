@@ -10,9 +10,9 @@ import { getOrCreateHousehold } from "@/lib/db/queries"
 import {
   INVENTORY_LOCATION_LABELS,
   getExpiryStatus,
-  formatExpiryLabel,
   type InventoryLocation,
 } from "@/lib/constants"
+import { formatExpiryLabel, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { InventoryForm } from "@/components/features/inventory-form"
@@ -32,6 +32,7 @@ export default async function InventoryPage() {
   if (!session) return null
 
   const household = await getOrCreateHousehold(session.user.id)
+  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
 
   const allItems = await db.query.inventory.findMany({
     where: eq(inventory.householdId, household.id),
@@ -70,7 +71,7 @@ export default async function InventoryPage() {
           <CardTitle>Add item</CardTitle>
         </CardHeader>
         <CardContent>
-          <InventoryForm />
+          <InventoryForm calendarSystem={calendarSystem} />
         </CardContent>
       </Card>
 
@@ -95,7 +96,7 @@ export default async function InventoryPage() {
               <div className="flex flex-col divide-y divide-border">
                 {items.map((item) => {
                   const status = getExpiryStatus(item.expiresAt ?? undefined)
-                  const expiryLabel = formatExpiryLabel(item.expiresAt ?? undefined)
+                  const expiryLabel = formatExpiryLabel(item.expiresAt ?? undefined, calendarSystem)
 
                   return (
                     <div key={item.id} className="flex items-center gap-3 px-4 py-3">

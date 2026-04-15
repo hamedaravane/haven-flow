@@ -7,7 +7,9 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { budgets, inventory, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
-import { formatCurrency, currentMonth, monthBounds, getExpiryStatus, formatExpiryLabel } from "@/lib/constants"
+import { formatCurrency, getExpiryStatus } from "@/lib/constants"
+import { formatStoredMonth, formatExpiryLabel, type CalendarSystem } from "@/lib/date-utils"
+import { getCurrentMonth, monthBounds } from "@/lib/date-utils"
 import { checkAndSendNotifications } from "@/lib/actions/notifications"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +26,8 @@ export default async function DashboardPage() {
   void checkAndSendNotifications()
 
   const household = await getOrCreateHousehold(session.user.id)
-  const month = currentMonth()
+  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
+  const month = getCurrentMonth(calendarSystem)
   const { start, end } = monthBounds(month)
 
   const monthWhere = and(
@@ -121,10 +124,7 @@ export default async function DashboardPage() {
   // Budget warnings (≥70%)
   const warnings = enrichedBudgets.filter((b) => b.pct >= 70)
 
-  const monthLabel = new Date(month + "-01").toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
+  const monthLabel = formatStoredMonth(month, calendarSystem)
 
   const greeting = (() => {
     const hour = new Date().getHours()
@@ -238,7 +238,7 @@ export default async function DashboardPage() {
                             : "text-amber-600"
                         }`}
                       >
-                        {formatExpiryLabel(item.expiresAt ?? undefined)}
+                        {formatExpiryLabel(item.expiresAt ?? undefined, calendarSystem)}
                       </p>
                     </div>
                     {status === "expired" ? (
@@ -290,7 +290,7 @@ export default async function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} />
+          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} calendarSystem={calendarSystem} />
         </CardContent>
       </Card>
 

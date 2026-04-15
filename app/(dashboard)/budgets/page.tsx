@@ -7,7 +7,8 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { budgets, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
-import { formatCurrency, currentMonth, monthBounds } from "@/lib/constants"
+import { formatCurrency } from "@/lib/constants"
+import { formatStoredMonth, getCurrentMonth, monthBounds as calAwareMonthBounds, type CalendarSystem } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -21,8 +22,9 @@ export default async function BudgetsPage() {
   if (!session) return null
 
   const household = await getOrCreateHousehold(session.user.id)
-  const month = currentMonth()
-  const { start, end } = monthBounds(month)
+  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
+  const month = getCurrentMonth(calendarSystem)
+  const { start, end } = calAwareMonthBounds(month)
 
   // Load top-level categories for the budget form
   const topLevelCategories = await db.query.categories.findMany({
@@ -126,10 +128,7 @@ export default async function BudgetsPage() {
       {currentBudgets.length > 0 && (
         <div className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            {new Date(month + "-01").toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
+            {formatStoredMonth(month, calendarSystem)}
           </h2>
 
           {currentBudgets.map((b) => (
@@ -199,7 +198,7 @@ export default async function BudgetsPage() {
           <CardTitle>Set a budget</CardTitle>
         </CardHeader>
         <CardContent>
-          <BudgetForm topLevelCategories={topLevelForForm} />
+          <BudgetForm topLevelCategories={topLevelForForm} calendarSystem={calendarSystem} />
         </CardContent>
       </Card>
 
@@ -215,7 +214,7 @@ export default async function BudgetsPage() {
                 <div key={b.id} className="flex items-center justify-between py-2.5">
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{b.categoryLabel}</span>
-                    <span className="text-xs text-muted-foreground">{b.month}</span>
+                    <span className="text-xs text-muted-foreground">{formatStoredMonth(b.month, calendarSystem)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm tabular-nums">

@@ -8,6 +8,7 @@ import { z } from "zod"
 import { createTransaction } from "@/lib/actions/transactions"
 import { cn } from "@/lib/utils"
 import { CURRENCIES, CURRENCY_LABELS, resolveDefaultCurrency, type Currency } from "@/lib/constants"
+import { formatDateForInput, parseDate, type CalendarSystem } from "@/lib/date-utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -69,6 +70,8 @@ interface TransactionFormProps {
   categories: TopLevelCategory[]
   /** Default currency from household settings */
   defaultCurrency?: string
+  /** Calendar system preference for the household */
+  calendarSystem?: CalendarSystem
   /** Called when the transaction is successfully saved */
   onSuccess?: () => void
   /** Pre-fill the date; defaults to today */
@@ -84,14 +87,20 @@ interface TransactionFormProps {
  *    The transaction is saved against the chosen subcategory's ID.
  * 3. If no subcategories exist, the top-level category ID is used directly.
  */
-export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess, defaultDate }: TransactionFormProps) {
+export function TransactionForm({ categories, defaultCurrency = "IRR", calendarSystem = "gregorian", onSuccess, defaultDate }: TransactionFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   /** The currently selected top-level category ID (drives the subcategory select). */
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
 
+  // For Jalali: show a placeholder and format hint; for Gregorian: use native <input type="date">
+  const isJalali = calendarSystem === "jalali"
   const todayISO = defaultDate ?? new Date().toISOString().split("T")[0]
+  // Default display value in chosen calendar
+  const todayDisplay = isJalali
+    ? formatDateForInput(todayISO, "jalali")
+    : todayISO
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -102,7 +111,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
       currency: resolveDefaultCurrency(defaultCurrency),
       description: "",
       isHouseholdExpense: true,
-      transactionDate: todayISO,
+      transactionDate: todayDisplay,
     },
   })
 
@@ -124,8 +133,11 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
   function onSubmit(values: FormValues) {
     setServerError(null)
     startTransition(async () => {
+      // Convert the date to a Gregorian ISO string regardless of input calendar
+      const isoDate = parseDate(values.transactionDate, calendarSystem) ?? values.transactionDate
       const result = await createTransaction({
         ...values,
+        transactionDate: isoDate,
         description: values.description || undefined,
       })
       if (result.error) {
@@ -138,7 +150,7 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
           currency: resolveDefaultCurrency(defaultCurrency),
           description: "",
           isHouseholdExpense: true,
-          transactionDate: todayISO,
+          transactionDate: todayDisplay,
         })
         setSelectedParentId(null)
         toast("Transaction saved", { variant: "success" })
@@ -216,8 +228,20 @@ export function TransactionForm({ categories, defaultCurrency = "IRR", onSuccess
               <FormItem>
                 <FormLabel>Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  {isJalali ? (
+                    <Input
+                      type="text"
+                      placeholder="۱۴۰۵/۰۲/۱۵"
+                      dir="ltr"
+                      {...field}
+                    />
+                  ) : (
+                    <Input type="date" {...field} />
+                  )}
                 </FormControl>
+                {isJalali && (
+                  <p className="text-xs text-muted-foreground">Format: YYYY/MM/DD (Jalali)</p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

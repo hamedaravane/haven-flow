@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 
 import { upsertBudget } from "@/lib/actions/budgets"
-import { currentMonth } from "@/lib/constants"
+import { getCurrentMonthInput, parseMonthInput, type CalendarSystem } from "@/lib/date-utils"
 import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,6 +53,8 @@ interface TopLevelCategory {
 interface BudgetFormProps {
   /** Top-level categories from the DB */
   topLevelCategories: TopLevelCategory[]
+  /** Calendar system preference for the household */
+  calendarSystem?: CalendarSystem
   onSuccess?: () => void
   /** Pre-fill with an existing budget for editing */
   defaultValues?: Partial<FormValues>
@@ -63,14 +65,18 @@ interface BudgetFormProps {
  * Budgets are linked to top-level categories for convenient rollup views.
  * Uses upsertBudget server action (creates or replaces by month+categoryId).
  */
-export function BudgetForm({ topLevelCategories, onSuccess, defaultValues }: BudgetFormProps) {
+export function BudgetForm({ topLevelCategories, calendarSystem = "gregorian", onSuccess, defaultValues }: BudgetFormProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const isJalali = calendarSystem === "jalali"
+  // Use the calendar-aware default month for the input field
+  const defaultMonth = getCurrentMonthInput(calendarSystem)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
-      month: currentMonth(),
+      month: defaultMonth,
       categoryId: "",
       plannedAmount: undefined,
       ...defaultValues,
@@ -80,11 +86,13 @@ export function BudgetForm({ topLevelCategories, onSuccess, defaultValues }: Bud
   function onSubmit(values: FormValues) {
     setServerError(null)
     startTransition(async () => {
-      const result = await upsertBudget(values)
+      // Convert the month input to Gregorian YYYY-MM for storage
+      const gregorianMonth = parseMonthInput(values.month, calendarSystem) ?? values.month
+      const result = await upsertBudget({ ...values, month: gregorianMonth })
       if (result.error) {
         setServerError(result.error)
       } else {
-        form.reset({ month: currentMonth(), categoryId: "", plannedAmount: undefined })
+        form.reset({ month: defaultMonth, categoryId: "", plannedAmount: undefined })
         toast("Budget saved", { variant: "success" })
         onSuccess?.()
       }
@@ -103,8 +111,20 @@ export function BudgetForm({ topLevelCategories, onSuccess, defaultValues }: Bud
               <FormItem>
                 <FormLabel>Month</FormLabel>
                 <FormControl>
-                  <Input type="month" {...field} />
+                  {isJalali ? (
+                    <Input
+                      type="text"
+                      placeholder="۱۴۰۵-۰۲"
+                      dir="ltr"
+                      {...field}
+                    />
+                  ) : (
+                    <Input type="month" {...field} />
+                  )}
                 </FormControl>
+                {isJalali && (
+                  <p className="text-xs text-muted-foreground">Format: YYYY-MM (Jalali)</p>
+                )}
                 <FormMessage />
               </FormItem>
             )}

@@ -1,0 +1,1 @@
+ALTER TABLE "households" ADD COLUMN "calendar_system" text DEFAULT 'jalali' NOT NULL;
