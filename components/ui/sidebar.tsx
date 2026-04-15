@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const SIDEBAR_COOKIE_KEY = "havenflow-sidebar-open"
+const SIDEBAR_STORAGE_KEY = "havenflow-sidebar-open"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ export function SidebarProvider({ children, defaultOpen = true }: SidebarProvide
 
   // Read persisted state after mount (avoids SSR mismatch)
   React.useEffect(() => {
-    const stored = localStorage.getItem(SIDEBAR_COOKIE_KEY)
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY)
     if (stored !== null) setOpenState(stored === "true")
   }, [])
 
@@ -61,7 +61,7 @@ export function SidebarProvider({ children, defaultOpen = true }: SidebarProvide
 
   const setOpen = React.useCallback((value: boolean) => {
     setOpenState(value)
-    localStorage.setItem(SIDEBAR_COOKIE_KEY, String(value))
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(value))
   }, [])
 
   const toggle = React.useCallback(() => setOpen(!open), [open, setOpen])
