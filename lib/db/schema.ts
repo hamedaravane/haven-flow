@@ -196,6 +196,12 @@ export const transactions = pgTable("transactions", {
   description: text("description"),
   isHouseholdExpense: boolean("is_household_expense").notNull().default(true),
   transactionDate: timestamp("transaction_date").notNull().defaultNow(),
+  /**
+   * Origin of this transaction:
+   * null  → manually entered via the UI
+   * 'csv' → imported from a CSV bank statement
+   */
+  source: text("source"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 })
 
