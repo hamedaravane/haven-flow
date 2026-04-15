@@ -30,6 +30,18 @@ export const JALALI_MONTH_NAMES = [
   "اسفند",
 ] as const
 
+// ─── Persian/Arabic digit normalization helpers ───────────────────────────────
+
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+/** Replace Persian or Arabic-Indic digits with their ASCII equivalents. */
+function normalizeDigits(str: string): string {
+  return str
+    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
+}
+
 // ─── Core conversion helpers ──────────────────────────────────────────────────
 
 /**
@@ -41,12 +53,10 @@ export function toJalali(date: Date): { jy: number; jm: number; jd: number } {
 
 /**
  * Convert a Jalali date string "YYYY/MM/DD" (or "YYYY-MM-DD") to a Gregorian Date.
- * Returns null if the input is invalid.
+ * Accepts Persian/Arabic-Indic digits. Returns null if the input is invalid.
  */
 export function toGregorian(jalaliStr: string): Date | null {
-  const normalised = jalaliStr.replace(/[۰-۹]/g, (d) =>
-    String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))
-  )
+  const normalised = normalizeDigits(jalaliStr)
   const parts = normalised.split(/[-/]/).map(Number)
   if (parts.length !== 3 || parts.some(isNaN)) return null
   const [jy, jm, jd] = parts as [number, number, number]
@@ -132,9 +142,7 @@ export function parseDate(dateStr: string, calendar: CalendarSystem): string | n
     return null
   }
   // Jalali: normalise Persian/Arabic digits and accept both "/" and "-" separators
-  const normalised = dateStr
-    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+  const normalised = normalizeDigits(dateStr)
   const date = toGregorian(normalised)
   if (!date) return null
   const y = date.getFullYear()
@@ -245,7 +253,8 @@ export function formatExpiryLabel(
   const formatted = formatDateShort(expiresAt, calendar)
   if (diffDays < 0) return `Expired ${formatted}`
   if (diffDays <= 1) return `Expires tomorrow (${formatted})`
-  if (diffDays <= 3) return `Expires ${formatted}`
+  // Both warning (≤3 days) and ok (>3 days) show the same "Expires {date}" label;
+  // the urgency distinction is conveyed via badge color from getExpiryStatus().
   return `Expires ${formatted}`
 }
 
