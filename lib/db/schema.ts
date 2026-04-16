@@ -120,13 +120,7 @@ export const households = pgTable("households", {
   notificationsSentAt: timestamp("notifications_sent_at"),
   /** Default currency for all household transactions (e.g. 'IRR', 'USD', 'USDT'). */
   defaultCurrency: text("default_currency").notNull().default("IRR"),
-  /**
-   * Preferred calendar system for the household.
-   * 'jalali'    → Solar Hijri / Shamsi / Persian (default for Iranian households)
-   * 'gregorian' → Standard ISO / Gregorian calendar
-   * All dates in the DB are always stored as Gregorian ISO — this field only affects display.
-   */
-  calendarSystem: text("calendar_system").notNull().default("jalali"),
+
 })
 
 /**

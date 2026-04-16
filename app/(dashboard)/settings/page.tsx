@@ -12,7 +12,6 @@ import {
   AppearanceSection,
   AccountSection,
   HouseholdSection,
-  CalendarSection,
   type HouseholdMember,
 } from "@/components/features/settings-sections"
 
@@ -60,8 +59,6 @@ export default async function SettingsPage() {
       />
 
       <CurrencySection defaultCurrency={household.defaultCurrency} />
-
-      <CalendarSection calendarSystem={(household.calendarSystem as "jalali" | "gregorian") ?? "jalali"} />
 
       <AppearanceSection />
 

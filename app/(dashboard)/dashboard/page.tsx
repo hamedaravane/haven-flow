@@ -7,9 +7,8 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { budgets, inventory, transactions } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
-import { formatCurrency, getExpiryStatus } from "@/lib/constants"
-import { formatStoredMonth, formatExpiryLabel, type CalendarSystem } from "@/lib/date-utils"
-import { getCurrentCalendarMonthBounds } from "@/lib/date-utils"
+import { formatCurrency, getExpiryStatus, formatExpiryLabel } from "@/lib/constants"
+import { formatStoredMonth, getCurrentCalendarMonthBounds } from "@/lib/date-utils"
 import { checkAndSendNotifications } from "@/lib/actions/notifications"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,10 +25,8 @@ export default async function DashboardPage() {
   void checkAndSendNotifications()
 
   const household = await getOrCreateHousehold(session.user.id)
-  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
-  // Use true calendar-aware month bounds so that Jalali months (which span
-  // Gregorian month boundaries) are fully covered in the query.
-  const { start, end, month } = getCurrentCalendarMonthBounds(calendarSystem)
+  // Use Gregorian month bounds for all queries
+  const { start, end, month } = getCurrentCalendarMonthBounds()
 
   const monthWhere = and(
     eq(transactions.householdId, household.id),
@@ -125,7 +122,7 @@ export default async function DashboardPage() {
   // Budget warnings (≥70%)
   const warnings = enrichedBudgets.filter((b) => b.pct >= 70)
 
-  const monthLabel = formatStoredMonth(month, calendarSystem)
+  const monthLabel = formatStoredMonth(month)
 
   const greeting = (() => {
     const hour = new Date().getHours()
@@ -239,7 +236,7 @@ export default async function DashboardPage() {
                             : "text-amber-600"
                         }`}
                       >
-                        {formatExpiryLabel(item.expiresAt ?? undefined, calendarSystem)}
+                        {formatExpiryLabel(item.expiresAt ?? undefined)}
                       </p>
                     </div>
                     {status === "expired" ? (
@@ -291,7 +288,7 @@ export default async function DashboardPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} calendarSystem={calendarSystem} />
+          <TransactionForm categories={topLevelCategories} defaultCurrency={household.defaultCurrency} />
         </CardContent>
       </Card>
 

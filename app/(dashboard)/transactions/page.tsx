@@ -8,7 +8,7 @@ import { db } from "@/lib/db"
 import { transactions, wallets } from "@/lib/db/schema"
 import { getOrCreateHousehold } from "@/lib/db/queries"
 import { formatCurrency } from "@/lib/constants"
-import { formatDate, type CalendarSystem } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,6 @@ export default async function TransactionsPage() {
   if (!session) return null
 
   const household = await getOrCreateHousehold(session.user.id)
-  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
 
   // Load top-level categories (with their subcategories) for the form
   const topLevelCategories = await db.query.categories.findMany({
@@ -73,7 +72,7 @@ export default async function TransactionsPage() {
           <CardTitle>Add transaction</CardTitle>
         </CardHeader>
         <CardContent>
-          <TransactionForm categories={topLevelCategories} wallets={userWallets} defaultCurrency={household.defaultCurrency} calendarSystem={calendarSystem} />
+          <TransactionForm categories={topLevelCategories} wallets={userWallets} defaultCurrency={household.defaultCurrency} />
         </CardContent>
       </Card>
 
@@ -120,7 +119,7 @@ export default async function TransactionsPage() {
                   return (
                     <TableRow key={tx.id}>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        {formatDate(new Date(tx.transactionDate), calendarSystem)}
+                        {formatDate(new Date(tx.transactionDate))}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">

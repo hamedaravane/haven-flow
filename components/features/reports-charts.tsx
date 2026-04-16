@@ -16,7 +16,6 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency, CURRENCY_SYMBOLS, type Currency } from "@/lib/constants"
-import type { CalendarSystem } from "@/lib/date-utils"
 
 // ── Colour palette for pie chart slices ──────────────────────────────────────
 const CHART_COLORS = [
@@ -46,7 +45,6 @@ interface ReportsChartsProps {
   monthlyData: MonthlyPoint[]
   categoryData: CategoryPoint[]
   defaultCurrency?: string
-  calendarSystem?: CalendarSystem
 }
 
 /** Custom tooltip for the bar chart */
@@ -93,8 +91,7 @@ function PieTooltip({
   )
 }
 
-export function ReportsCharts({ monthlyData, categoryData, defaultCurrency = "IRR" }: ReportsChartsProps) {
-  // Use the pre-computed monthLabel (calendar-aware) from the server for chart X-axis
+export function ReportsCharts({ monthlyData, categoryData, defaultCurrency = "IRR" }: ReportsChartsProps) {  // Use the pre-computed monthLabel (calendar-aware) from the server for chart X-axis
   const chartData = monthlyData.map((d) => ({
     ...d,
     // Use a short version of the monthLabel for the chart axis
