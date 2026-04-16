@@ -1,12 +1,12 @@
 /**
- * CSV Parser for HavenFlow — Iranian bank transaction exports.
+ * CSV Parser for HavenFlow — bank transaction exports.
  *
  * This module is purely client-safe (no "use server").
  * It handles:
  *   - Auto-detection of the data header row (skipping metadata rows at the top)
- *   - Column mapping for the Iranian bank CSV format
+ *   - Column mapping for CSV bank export format
  *   - Amount normalisation (remove thousand-separator commas, handle Persian digits)
- *   - Date parsing (YYYY/MM/DD Jalali → ISO Gregorian string)
+ *   - Date parsing (Gregorian YYYY-MM-DD or YYYY/MM/DD format)
  *   - Type mapping (DEBIT → expense, CREDIT → income)
  */
 
@@ -17,7 +17,6 @@ import {
   CSV_TYPE_MAP,
   type CsvColumnKey,
 } from "@/lib/csv-constants"
-import { toGregorian } from "@/lib/date-utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,21 +141,13 @@ function parseAmount(raw: string): number {
 // ─── Date parsing ─────────────────────────────────────────────────────────────
 
 /**
- * Parse a Jalali date string "YYYY/MM/DD" into a Gregorian ISO string "YYYY-MM-DD".
- * Also accepts pure Gregorian "YYYY-MM-DD" or "YYYY/MM/DD".
+ * Parse a Gregorian date string into an ISO date string "YYYY-MM-DD".
+ * Accepts "YYYY-MM-DD" or "YYYY/MM/DD" format (with Persian/Arabic digits normalized).
  * Returns null if parsing fails.
  */
 function parseCsvDate(raw: string): string | null {
   const normalised = normalizeDigits(raw).trim()
-  // Try Jalali first (most Iranian bank exports use Jalali dates)
-  const gregorianDate = toGregorian(normalised)
-  if (gregorianDate) {
-    const y = gregorianDate.getFullYear()
-    const m = String(gregorianDate.getMonth() + 1).padStart(2, "0")
-    const d = String(gregorianDate.getDate()).padStart(2, "0")
-    return `${y}-${m}-${d}`
-  }
-  // Fallback: try parsing as Gregorian ISO
+  // Normalise slash separator to hyphen and validate format
   const iso = normalised.replace(/\//g, "-")
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const test = new Date(iso)

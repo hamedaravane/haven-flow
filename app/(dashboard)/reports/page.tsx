@@ -13,7 +13,6 @@ import {
   getCurrentCalendarMonthBounds,
   getCalendarMonths,
   getCalendarMonthKey,
-  type CalendarSystem,
 } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -30,13 +29,9 @@ export default async function ReportsPage() {
 
   const household = await getOrCreateHousehold(session.user.id)
   const defaultCurrency = household.defaultCurrency
-  const calendarSystem = (household.calendarSystem as CalendarSystem) ?? "jalali"
 
-  // ── Build 6 calendar-aware month windows ──────────────────────────────────
-  // For Jalali: each window covers the true Gregorian span of the Jalali month
-  // (e.g., Farvardin = March 21–April 21), so transactions that fall within a
-  // Jalali month but cross a Gregorian month boundary are not missed.
-  const calMonths = getCalendarMonths(calendarSystem, 6) // oldest → newest
+  // ── Build 6 Gregorian month windows ──────────────────────────────────────
+  const calMonths = getCalendarMonths(6) // oldest → newest
   const firstStart = calMonths[0].start
   const lastEnd = calMonths[calMonths.length - 1].end
 
@@ -64,7 +59,7 @@ export default async function ReportsPage() {
     monthlyAcc[cm.month] = { income: 0, expenses: 0 }
   }
   for (const row of allTxRows) {
-    const key = getCalendarMonthKey(new Date(row.transactionDate), calendarSystem)
+    const key = getCalendarMonthKey(new Date(row.transactionDate))
     if (monthlyAcc[key]) {
       const amount = parseFloat(row.amount)
       if (row.type === "income") monthlyAcc[key].income += amount
@@ -74,14 +69,14 @@ export default async function ReportsPage() {
 
   const monthlyData = calMonths.map((cm) => ({
     month: cm.month,
-    monthLabel: formatStoredMonth(cm.month, calendarSystem),
+    monthLabel: formatStoredMonth(cm.month),
     income: monthlyAcc[cm.month]?.income ?? 0,
     expenses: monthlyAcc[cm.month]?.expenses ?? 0,
   }))
 
-  // ── Category breakdown for current calendar month ──────────────────────────
+  // ── Category breakdown for current Gregorian month ────────────────────────
   const { start: cmStart, end: cmEnd, month: currentMonth } =
-    getCurrentCalendarMonthBounds(calendarSystem)
+    getCurrentCalendarMonthBounds()
 
   // Load all categories so we can roll subcategory spending up to top-level
   const allCategories = await db.query.categories.findMany({
@@ -267,7 +262,7 @@ export default async function ReportsPage() {
             <Users className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Spending by Member —{" "}
-              {formatStoredMonth(currentMonth, calendarSystem)}
+              {formatStoredMonth(currentMonth)}
             </h2>
           </div>
 
@@ -336,7 +331,7 @@ export default async function ReportsPage() {
       )}
 
       {/* ── Charts (client component) ──────────────────────────────────────── */}
-      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} calendarSystem={calendarSystem} />
+      <ReportsCharts monthlyData={monthlyData} categoryData={categoryData} defaultCurrency={defaultCurrency} />
     </div>
   )
 }

@@ -9,7 +9,6 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { user, households, householdMembers } from "@/lib/db/schema"
 import { CURRENCIES } from "@/lib/constants"
-import type { CalendarSystem } from "@/lib/date-utils"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -36,10 +35,6 @@ const updateNameSchema = z.object({
 
 const updateCurrencySchema = z.object({
   currency: z.enum([...CURRENCIES] as [string, ...string[]]),
-})
-
-const calendarSystemSchema = z.object({
-  calendarSystem: z.enum(["jalali", "gregorian"]),
 })
 
 const householdNameSchema = z.object({
@@ -245,31 +240,4 @@ export async function removeMember(input: { memberId: string }) {
   return { success: true }
 }
 
-/**
- * Update the calendar system preference for the household.
- * This affects how all dates are displayed across the app.
- */
-export async function updateCalendarSystem(input: { calendarSystem: CalendarSystem }) {
-  const session = await requireSession()
 
-  const parsed = calendarSystemSchema.safeParse(input)
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" }
-  }
-
-  const membership = await requireMembership(session.user.id)
-
-  await db
-    .update(households)
-    .set({ calendarSystem: parsed.data.calendarSystem })
-    .where(eq(households.id, membership.householdId))
-
-  revalidatePath("/settings")
-  revalidatePath("/dashboard")
-  revalidatePath("/transactions")
-  revalidatePath("/budgets")
-  revalidatePath("/reports")
-  revalidatePath("/inventory")
-
-  return { success: true }
-}

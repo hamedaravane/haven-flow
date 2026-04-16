@@ -1,243 +1,79 @@
 /**
- * Date utilities for HavenFlow — Jalali (Solar Hijri) ↔ Gregorian conversions.
+ * Date utilities for HavenFlow.
  *
  * ALL dates are stored in the database as ISO 8601 Gregorian strings.
- * These helpers are used ONLY for display and user input conversion.
+ * These helpers provide consistent date formatting using the built-in
+ * Intl.DateTimeFormat API — no external date libraries required.
  *
- * Calendar system values:
- *   'jalali'    → Solar Hijri / Shamsi / Persian
- *   'gregorian' → Standard ISO / Gregorian
+ * To display dates in Persian (Solar Hijri), pass locale "fa-IR" or
+ * "fa-IR-u-nu-latn" (Persian calendar, Latin digits) to any formatting
+ * function. No manual conversion logic is needed.
  */
-
-import jalaali from "jalaali-js"
-
-export type CalendarSystem = "jalali" | "gregorian"
-
-// ─── Persian / Jalali month names ─────────────────────────────────────────────
-
-export const JALALI_MONTH_NAMES = [
-  "فروردین",
-  "اردیبهشت",
-  "خرداد",
-  "تیر",
-  "مرداد",
-  "شهریور",
-  "مهر",
-  "آبان",
-  "آذر",
-  "دی",
-  "بهمن",
-  "اسفند",
-] as const
-
-// ─── Persian/Arabic digit normalization helpers ───────────────────────────────
-
-const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"
-const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
-
-/** Replace Persian or Arabic-Indic digits with their ASCII equivalents. */
-function normalizeDigits(str: string): string {
-  return str
-    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
-}
-
-// ─── Core conversion helpers ──────────────────────────────────────────────────
-
-/**
- * Convert a Gregorian Date object to a Jalali date object { jy, jm, jd }.
- */
-export function toJalali(date: Date): { jy: number; jm: number; jd: number } {
-  return jalaali.toJalaali(date.getFullYear(), date.getMonth() + 1, date.getDate())
-}
-
-/**
- * Convert a Jalali date string "YYYY/MM/DD" (or "YYYY-MM-DD") to a Gregorian Date.
- * Accepts Persian/Arabic-Indic digits. Returns null if the input is invalid.
- */
-export function toGregorian(jalaliStr: string): Date | null {
-  const normalised = normalizeDigits(jalaliStr)
-  const parts = normalised.split(/[-/]/).map(Number)
-  if (parts.length !== 3 || parts.some(isNaN)) return null
-  const [jy, jm, jd] = parts as [number, number, number]
-  try {
-    const { gy, gm, gd } = jalaali.toGregorian(jy, jm, jd)
-    return new Date(gy, gm - 1, gd)
-  } catch {
-    return null
-  }
-}
 
 // ─── Display formatting ───────────────────────────────────────────────────────
 
 /**
- * Format a Date for display in the chosen calendar system.
+ * Format a Date for display using Intl.DateTimeFormat.
  *
- * Jalali example:    "۱۴۰۵/۰۲/۱۵"
- * Gregorian example: "2026-04-15"
+ * @example formatDate(new Date())              → "Apr 15, 2026"
+ * @example formatDate(new Date(), "fa-IR")     → Solar Hijri with Persian digits
+ * @example formatDate(new Date(), "fa-IR-u-nu-latn") → Solar Hijri with Latin digits
  */
-export function formatDate(date: Date | null | undefined, calendar: CalendarSystem): string {
+export function formatDate(
+  date: Date | null | undefined,
+  locale = "en-US",
+  options: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" }
+): string {
   if (!date) return "—"
-  if (calendar === "jalali") {
-    const { jy, jm, jd } = toJalali(date)
-    return `${jy}/${String(jm).padStart(2, "0")}/${String(jd).padStart(2, "0")}`
-  }
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
+  return new Intl.DateTimeFormat(locale, options).format(date)
 }
 
 /**
- * Format a month string "YYYY-MM" for display in the chosen calendar.
+ * Format a month string "YYYY-MM" for display.
  *
- * Jalali example:    "فروردین ۱۴۰۵"
- * Gregorian example: "April 2026"
+ * @example formatMonth("2026-04")          → "April 2026"
+ * @example formatMonth("2026-04", "fa-IR") → Solar Hijri month name
  */
-export function formatMonth(month: string, calendar: CalendarSystem): string {
+export function formatMonth(month: string, locale = "en-US"): string {
   const [y, m] = month.split("-").map(Number)
-  if (calendar === "jalali") {
-    // Convert the first day of the Gregorian month to Jalali
-    const { jy, jm } = jalaali.toJalaali(y, m, 1)
-    const monthName = JALALI_MONTH_NAMES[jm - 1] ?? ""
-    return `${monthName} ${jy}`
-  }
-  return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  })
+  return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }).format(
+    new Date(y, m - 1, 1)
+  )
 }
 
 /**
- * Format an expiry date for display (short form), respecting calendar.
- *
- * Jalali example:    "۱۵ اردیبهشت"
- * Gregorian example: "May 15"
+ * Format a Date as a short display (e.g. "Apr 15").
  */
-export function formatDateShort(date: Date | null | undefined, calendar: CalendarSystem): string {
+export function formatDateShort(date: Date | null | undefined, locale = "en-US"): string {
   if (!date) return ""
-  if (calendar === "jalali") {
-    const { jm, jd } = toJalali(date)
-    const monthName = JALALI_MONTH_NAMES[jm - 1] ?? ""
-    return `${jd} ${monthName}`
-  }
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
-
-// ─── Input parsing ────────────────────────────────────────────────────────────
-
-/**
- * Parse a date string from a form input into an ISO 8601 date string (Gregorian).
- *
- * - Gregorian input: "YYYY-MM-DD"  →  returned as-is
- * - Jalali input:    "YYYY/MM/DD"  →  converted to "YYYY-MM-DD" Gregorian
- *
- * Returns null if parsing fails.
- */
-export function parseDate(dateStr: string, calendar: CalendarSystem): string | null {
-  if (!dateStr) return null
-  if (calendar === "gregorian") {
-    // Validate basic format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-    return null
-  }
-  // Jalali: normalise Persian/Arabic digits and accept both "/" and "-" separators
-  const normalised = normalizeDigits(dateStr)
-  const date = toGregorian(normalised)
-  if (!date) return null
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(date)
 }
 
 // ─── "Current month" helpers ──────────────────────────────────────────────────
 
 /**
  * Return the current month as a Gregorian "YYYY-MM" string.
- * This is what gets stored in the DB for budget.month.
- *
- * When calendarSystem is 'jalali' this still returns the Gregorian month that
- * corresponds to the start of the current Jalali month (since budgets are
- * always anchored to a Gregorian month boundary in the DB).
+ * This is the format stored in budgets.month.
  */
-export function getCurrentMonth(calendar: CalendarSystem): string {
+export function getCurrentMonth(): string {
   const now = new Date()
-  if (calendar === "jalali") {
-    // Return the Gregorian month in which the current Jalali month starts.
-    // We find the first day of the current Jalali month and convert back.
-    const { jy, jm } = toJalali(now)
-    const { gy, gm } = jalaali.toGregorian(jy, jm, 1)
-    return `${gy}-${String(gm).padStart(2, "0")}`
-  }
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
 }
 
 /**
- * Return the Gregorian [start, end) Date bounds for a "YYYY-MM" Gregorian month.
- * These are used for DB queries which always operate in Gregorian time.
+ * Return the Gregorian [start, end) Date bounds for a "YYYY-MM" string.
+ * Used for DB range queries.
  */
 export function monthBounds(month: string): { start: Date; end: Date } {
   const [year, mon] = month.split("-").map(Number)
-  const start = new Date(year, mon - 1, 1)
-  const end = new Date(year, mon, 1) // exclusive upper bound
-  return { start, end }
+  return { start: new Date(year, mon - 1, 1), end: new Date(year, mon, 1) }
 }
 
 /**
- * Return the stored YYYY-MM key for the calendar month that contains `date`.
- *
- * - Gregorian: returns the Gregorian YYYY-MM of the date.
- * - Jalali: returns the Gregorian YYYY-MM of the *first day* of the Jalali
- *   month that contains the date (matching the format written to budgets.month
- *   by getCurrentMonth).
- *
- * This is the inverse of getCurrentMonth — it answers "which stored month
- * does this transaction date belong to?".
+ * Return the current Gregorian month's [start, end) bounds and YYYY-MM key.
  */
-export function getCalendarMonthKey(date: Date, calendar: CalendarSystem): string {
-  if (calendar === "gregorian") {
-    const y = date.getFullYear()
-    const m = date.getMonth() + 1
-    return `${y}-${String(m).padStart(2, "0")}`
-  }
-  // Jalali: find the Jalali month that contains `date`, then return the
-  // Gregorian month in which that Jalali month's first day falls.
-  const { jy, jm } = toJalali(date)
-  const { gy, gm } = jalaali.toGregorian(jy, jm, 1)
-  return `${gy}-${String(gm).padStart(2, "0")}`
-}
-
-/**
- * Return the true Gregorian [start, end) bounds for the currently-displayed
- * calendar month, plus the stored `month` key used for budget matching.
- *
- * For Gregorian: aligns with the standard Gregorian month (1st – 1st of next).
- * For Jalali: returns the exact Gregorian dates for the start and end of the
- * current Jalali month (e.g., March 21 – April 21 for Farvardin 1405), so
- * transactions that fall within the Jalali month but cross a Gregorian month
- * boundary are correctly included.
- */
-export function getCurrentCalendarMonthBounds(calendar: CalendarSystem): {
-  start: Date
-  end: Date
-  month: string
-} {
+export function getCurrentCalendarMonthBounds(): { start: Date; end: Date; month: string } {
   const now = new Date()
-  if (calendar === "jalali") {
-    const { jy, jm } = toJalali(now)
-    // First day of the current Jalali month → Gregorian
-    const sg = jalaali.toGregorian(jy, jm, 1)
-    const start = new Date(sg.gy, sg.gm - 1, sg.gd)
-    // First day of the *next* Jalali month → Gregorian (exclusive upper bound)
-    const nextJm = jm === 12 ? 1 : jm + 1
-    const nextJy = jm === 12 ? jy + 1 : jy
-    const eg = jalaali.toGregorian(nextJy, nextJm, 1)
-    const end = new Date(eg.gy, eg.gm - 1, eg.gd)
-    // Stored month key: Gregorian month where the Jalali month starts
-    const month = `${sg.gy}-${String(sg.gm).padStart(2, "0")}`
-    return { start, end, month }
-  }
   const y = now.getFullYear()
   const m = now.getMonth() + 1
   const month = `${y}-${String(m).padStart(2, "0")}`
@@ -245,150 +81,47 @@ export function getCurrentCalendarMonthBounds(calendar: CalendarSystem): {
 }
 
 /**
- * Return an array of calendar-month windows for the past `count` months,
- * ordered oldest → newest (index 0 = oldest, index count-1 = current month).
- *
- * For Gregorian: each window aligns with the standard Gregorian month.
- * For Jalali: each window uses the true Gregorian bounds of the Jalali month
- * (e.g., Farvardin = March 21 – April 21), so chart bars cover exactly one
- * Jalali month of data.
+ * Return the Gregorian YYYY-MM key for the month that contains `date`.
+ */
+export function getCalendarMonthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+}
+
+/**
+ * Return an array of Gregorian month windows for the past `count` months,
+ * ordered oldest → newest.
  *
  * Each entry contains:
- *   month  – stored YYYY-MM key (Gregorian month where the Jalali month starts,
- *             matching the format used in getCurrentMonth / budgets.month)
- *   start  – inclusive lower bound for DB queries (Gregorian Date)
- *   end    – exclusive upper bound for DB queries (Gregorian Date)
+ *   month – "YYYY-MM" key
+ *   start – inclusive lower bound for DB queries
+ *   end   – exclusive upper bound for DB queries
  */
-export function getCalendarMonths(
-  calendar: CalendarSystem,
-  count: number
-): Array<{ month: string; start: Date; end: Date }> {
+export function getCalendarMonths(count: number): Array<{ month: string; start: Date; end: Date }> {
   const now = new Date()
-
-  if (calendar === "gregorian") {
-    return Array.from({ length: count }, (_, i) => {
-      const offset = count - 1 - i // oldest first
-      const y = now.getFullYear()
-      const rawM = now.getMonth() - offset // may be negative
-      // Use Date math to handle year wrapping
-      const d = new Date(y, rawM, 1)
-      const dy = d.getFullYear()
-      const dm = d.getMonth() + 1
-      const month = `${dy}-${String(dm).padStart(2, "0")}`
-      return { month, start: new Date(dy, dm - 1, 1), end: new Date(dy, dm, 1) }
-    })
-  }
-
-  // Jalali: generate count Jalali months going back from today
-  const { jy: curJy, jm: curJm } = toJalali(now)
   return Array.from({ length: count }, (_, i) => {
     const offset = count - 1 - i // oldest first
-    // Compute the Jalali month that is `offset` months before the current one
-    let jm = curJm - offset
-    let jy = curJy
-    while (jm <= 0) {
-      jm += 12
-      jy--
-    }
-    // Actual Gregorian start/end for this Jalali month
-    const sg = jalaali.toGregorian(jy, jm, 1)
-    const nextJm = jm === 12 ? 1 : jm + 1
-    const nextJy = jm === 12 ? jy + 1 : jy
-    const eg = jalaali.toGregorian(nextJy, nextJm, 1)
-    // Stored month key
-    const month = `${sg.gy}-${String(sg.gm).padStart(2, "0")}`
-    return {
-      month,
-      start: new Date(sg.gy, sg.gm - 1, sg.gd),
-      end: new Date(eg.gy, eg.gm - 1, eg.gd),
-    }
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    const y = d.getFullYear()
+    const m = d.getMonth() + 1
+    const month = `${y}-${String(m).padStart(2, "0")}`
+    return { month, start: new Date(y, m - 1, 1), end: new Date(y, m, 1) }
   })
 }
 
 /**
- * Convert a Jalali month label "YYYY-MM" (e.g. "1404-02") to the
- * Gregorian "YYYY-MM" month string used in the DB.
- */
-export function jalaliMonthToGregorian(jalaliMonth: string): string {
-  const [jy, jm] = jalaliMonth.split("-").map(Number)
-  const { gy, gm } = jalaali.toGregorian(jy, jm, 1)
-  return `${gy}-${String(gm).padStart(2, "0")}`
-}
-
-/**
- * Convert a Gregorian "YYYY-MM" month string to its Jalali "YYYY-MM" equivalent.
- */
-export function gregorianMonthToJalali(gregorianMonth: string): string {
-  const [gy, gm] = gregorianMonth.split("-").map(Number)
-  const { jy, jm } = jalaali.toJalaali(gy, gm, 1)
-  return `${jy}-${String(jm).padStart(2, "0")}`
-}
-
-/**
  * Return a display-ready month label for a Gregorian "YYYY-MM" string.
- * Used wherever budget.month (always stored as Gregorian) needs to be shown.
+ * Used wherever budget.month needs to be shown.
  */
-export function formatStoredMonth(gregorianMonth: string, calendar: CalendarSystem): string {
-  return formatMonth(gregorianMonth, calendar)
+export function formatStoredMonth(gregorianMonth: string, locale = "en-US"): string {
+  return formatMonth(gregorianMonth, locale)
 }
 
 /**
- * Return the current month in the display format for the chosen calendar.
- * Jalali example:    "1404-02"
- * Gregorian example: "2026-04"
- * (This is the value shown in the month input field, NOT what's stored in DB.)
+ * Format a Gregorian ISO date string for use in an `<input type="date">` field.
+ * Returns "YYYY-MM-DD" or "" if invalid.
  */
-export function getCurrentMonthInput(calendar: CalendarSystem): string {
-  const now = new Date()
-  if (calendar === "jalali") {
-    const { jy, jm } = toJalali(now)
-    return `${jy}-${String(jm).padStart(2, "0")}`
-  }
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-}
-
-/**
- * Parse a month input string to the Gregorian "YYYY-MM" stored in the DB.
- * - Gregorian input "YYYY-MM" is returned as-is.
- * - Jalali input "YYYY-MM" is converted to the corresponding Gregorian month.
- */
-export function parseMonthInput(monthStr: string, calendar: CalendarSystem): string | null {
-  if (!/^\d{4}-\d{2}$/.test(monthStr)) return null
-  if (calendar === "gregorian") return monthStr
-  return jalaliMonthToGregorian(monthStr)
-}
-
-/**
- * Format an expiry label respecting the chosen calendar.
- * Mirrors the logic of `formatExpiryLabel` in lib/constants.ts but calendar-aware.
- */
-export function formatExpiryLabel(
-  expiresAt: Date | null | undefined,
-  calendar: CalendarSystem
-): string {
-  if (!expiresAt) return ""
-  // Import inline to avoid circular deps with constants.ts
-  const now = new Date()
-  const diffMs = expiresAt.getTime() - now.getTime()
-  const diffDays = diffMs / (1000 * 60 * 60 * 24)
-  const formatted = formatDateShort(expiresAt, calendar)
-  if (diffDays < 0) return `Expired ${formatted}`
-  if (diffDays <= 1) return `Expires tomorrow (${formatted})`
-  // Both warning (≤3 days) and ok (>3 days) show the same "Expires {date}" label;
-  // the urgency distinction is conveyed via badge color from getExpiryStatus().
-  return `Expires ${formatted}`
-}
-
-/**
- * Format a Gregorian date (stored in DB) for display inside an input field.
- * Returns: "YYYY/MM/DD" for Jalali, "YYYY-MM-DD" for Gregorian.
- */
-export function formatDateForInput(
-  isoDate: string | null | undefined,
-  calendar: CalendarSystem
-): string {
+export function formatDateForInput(isoDate: string | null | undefined): string {
   if (!isoDate) return ""
-  const date = new Date(isoDate)
-  if (isNaN(date.getTime())) return ""
-  return formatDate(date, calendar)
+  const match = String(isoDate).match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ""
 }

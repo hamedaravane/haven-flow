@@ -29,6 +29,13 @@
       "when": 1776300000000,
       "tag": "0003_transaction_source",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776321539765,
+      "tag": "0004_slimy_champions",
+      "breakpoints": true
     }
   ]
 }
